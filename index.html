@@ -1,3 +1,6 @@
+Я продлил дорогу за нижний край экрана (теперь `roadBottomY = h * 1.05`), чтобы её граница не была видна. В сочетании с нижним туманом уходящие продукты полностью скрываются.
+
+```html
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -678,7 +681,7 @@
                 ctx.setTransform(1, 0, 0, 1, 0, 0);
                 ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
                 state.roadTopY = h * 0.26;
-                state.roadBottomY = h * 0.92;
+                state.roadBottomY = h * 1.05; // продлеваем дорогу за нижний край экрана
                 state.roadTopWidth = w * 0.3;
                 state.roadBottomWidth = w * 0.9;
                 state.laneWidthBottom = state.roadBottomWidth / 3;
@@ -1001,28 +1004,28 @@
             }
 
             function drawFog() {
-    const rty = state.roadTopY;
-    const rby = state.roadBottomY;
-    // Верхний туман
-    const fogTop = rty - 100;
-    const fogBottom = rty + 150;
-    const fog = ctx.createLinearGradient(0, fogTop, 0, fogBottom);
-    fog.addColorStop(0, '#0a0a24');
-    fog.addColorStop(0.4, 'rgba(10,10,36,0.94)');
-    fog.addColorStop(1, 'rgba(10,10,36,0)');
-    ctx.fillStyle = fog;
-    ctx.fillRect(0, fogTop, state.canvasW, fogBottom - fogTop);
+                const rty = state.roadTopY;
+                const rby = state.roadBottomY;
+                // Верхний туман
+                const fogTop = rty - 100;
+                const fogBottom = rty + 150;
+                const fog = ctx.createLinearGradient(0, fogTop, 0, fogBottom);
+                fog.addColorStop(0, '#0a0a24');
+                fog.addColorStop(0.4, 'rgba(10,10,36,0.94)');
+                fog.addColorStop(1, 'rgba(10,10,36,0)');
+                ctx.fillStyle = fog;
+                ctx.fillRect(0, fogTop, state.canvasW, fogBottom - fogTop);
 
-    // Усиленный нижний туман (скрывает обрыв дороги и продукты)
-    const bottomFogTop = rby - 60;   // начинается выше
-    const bottomFogBottom = state.canvasH;
-    const bottomFog = ctx.createLinearGradient(0, bottomFogTop, 0, bottomFogBottom);
-    bottomFog.addColorStop(0, 'rgba(10,10,36,0)');
-    bottomFog.addColorStop(0.2, 'rgba(10,10,36,0.85)'); // быстрое затемнение
-    bottomFog.addColorStop(1, '#0a0a24');
-    ctx.fillStyle = bottomFog;
-    ctx.fillRect(0, bottomFogTop, state.canvasW, bottomFogBottom - bottomFogTop);
-}
+                // Нижний туман (скрывает край дороги и уходящие продукты)
+                const bottomFogTop = rby - 80;
+                const bottomFogBottom = state.canvasH;
+                const bottomFog = ctx.createLinearGradient(0, bottomFogTop, 0, bottomFogBottom);
+                bottomFog.addColorStop(0, 'rgba(10,10,36,0)');
+                bottomFog.addColorStop(0.5, 'rgba(10,10,36,0.85)');
+                bottomFog.addColorStop(1, '#0a0a24');
+                ctx.fillStyle = bottomFog;
+                ctx.fillRect(0, bottomFogTop, state.canvasW, bottomFogBottom - bottomFogTop);
+            }
 
             function render() {
                 ctx.clearRect(0, 0, state.canvasW, state.canvasH);
@@ -1148,3 +1151,4 @@
     </script>
 </body>
 </html>
+```
