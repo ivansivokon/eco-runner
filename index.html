@@ -1,0 +1,1139 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover, maximum-scale=1.0, minimum-scale=1.0">
+    <title>Фуд-Ран | Неоновый забег</title>
+    <style>
+        :root {
+            --bg: #0a0a1a;
+            --neon-green: #2ecc71;
+            --neon-red: #e74c3c;
+            --gold: #f1c40f;
+            --text: #ecf0f1;
+            --card: #1e1e35;
+            --radius: 22px;
+        }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        body {
+            background: #050510;
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            height: 100vh;
+            height: 100dvh;
+            width: 100vw;
+            overflow: hidden;
+            position: fixed;
+            inset: 0;
+            touch-action: manipulation;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #app {
+            width: 100%;
+            height: 100%;
+            max-width: 500px;
+            position: relative;
+            overflow: hidden;
+            background: #0a0a1a;
+        }
+        .screen {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            opacity: 0;
+            transform: scale(0.94);
+            transition: opacity 0.35s ease, transform 0.35s ease;
+            z-index: 1;
+        }
+        .screen.active {
+            pointer-events: all;
+            opacity: 1;
+            transform: scale(1);
+            z-index: 10;
+        }
+        #menu-screen {
+            gap: 16px;
+            padding: 30px 20px;
+            background: radial-gradient(ellipse at 50% 30%, #1a1a40 0%, #0a0a1a 70%);
+        }
+        #menu-screen .logo {
+            font-size: 64px;
+            animation: logoBounce 2.2s ease-in-out infinite;
+        }
+        @keyframes logoBounce {
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+            25% {
+                transform: translateY(-18px);
+            }
+            50% {
+                transform: translateY(0);
+            }
+            70% {
+                transform: translateY(-8px);
+            }
+        }
+        #menu-screen h1 {
+            font-size: 30px;
+            font-weight: 900;
+            color: #fff;
+            letter-spacing: 1px;
+            text-shadow: 0 0 30px rgba(255, 255, 255, 0.15);
+        }
+        #menu-screen h1 span {
+            background: linear-gradient(135deg, #f1c40f, #e67e22);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        #menu-screen .subtitle {
+            font-size: 13px;
+            color: #889;
+            letter-spacing: 0.4px;
+            margin-top: -8px;
+        }
+        .btn {
+            width: 100%;
+            max-width: 280px;
+            padding: 15px 26px;
+            border: none;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            letter-spacing: 0.5px;
+            transition: all 0.25s ease;
+            color: #fff;
+            text-align: center;
+            box-shadow: 0 6px 22px rgba(0, 0, 0, 0.35);
+        }
+        .btn:active {
+            transform: scale(0.93);
+        }
+        .btn-play {
+            background: linear-gradient(135deg, #2ecc71, #1abc9c);
+            font-size: 19px;
+            padding: 17px 30px;
+            box-shadow: 0 8px 30px rgba(46, 204, 113, 0.4);
+        }
+        .btn-collection {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+        }
+        .btn-stats {
+            background: rgba(255, 255, 255, 0.07);
+            border: 2px solid rgba(255, 255, 255, 0.18);
+            font-size: 13px;
+            padding: 11px 20px;
+            font-weight: 500;
+        }
+        .stats-row {
+            display: flex;
+            gap: 10px;
+            width: 100%;
+            max-width: 280px;
+        }
+        .stats-row .btn {
+            flex: 1;
+            font-size: 12px;
+            padding: 10px 8px;
+        }
+        .social-links {
+            display: flex;
+            gap: 14px;
+            margin-top: 6px;
+        }
+        .social-links a {
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.06);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-decoration: none;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+        }
+        .social-links a:active {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        #game-screen {
+            background: #000;
+        }
+        #game-canvas {
+            position: absolute;
+            inset: 0;
+            z-index: 1;
+        }
+        #game-hud {
+            position: absolute;
+            top: 6%;
+            left: 0;
+            right: 0;
+            z-index: 15;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            pointer-events: none;
+            padding: 0 20px;
+        }
+        .hud-top-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 24px;
+            font-size: 24px;
+            font-weight: 900;
+            color: #fff;
+            text-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
+            letter-spacing: 1px;
+        }
+        .hud-lives-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 28px;
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(12px);
+            border-radius: 40px;
+            padding: 8px 28px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .hud-lives-row .heart {
+            transition: all 0.3s ease;
+        }
+        .hud-lives-row .heart.lost {
+            opacity: 0.2;
+            transform: scale(0.65);
+            filter: grayscale(1);
+        }
+        #hud-pause-btn {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            width: 42px;
+            height: 42px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.25);
+            color: #fff;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 20;
+            transition: all 0.2s ease;
+        }
+        #hud-pause-btn:active {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        #pause-overlay,
+        #gameover-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 50;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(8px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        #pause-overlay.visible,
+        #gameover-overlay.visible {
+            pointer-events: all;
+            opacity: 1;
+        }
+        .pause-card,
+        .go-card {
+            background: #1e1e35;
+            border-radius: 24px;
+            padding: 28px 22px;
+            text-align: center;
+            width: 85%;
+            max-width: 340px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            animation: popIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popIn {
+            from {
+                transform: translateY(30px) scale(0.85);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0) scale(1);
+                opacity: 1;
+            }
+        }
+        .pause-card h3,
+        .go-title {
+            font-size: 22px;
+            font-weight: 800;
+            color: #fff;
+            margin-bottom: 10px;
+        }
+        .go-emoji {
+            font-size: 56px;
+        }
+        .go-score {
+            font-size: 44px;
+            font-weight: 900;
+            color: #f1c40f;
+        }
+        .go-record {
+            font-size: 14px;
+            color: #aab;
+            margin-bottom: 14px;
+        }
+        .go-record.new-record {
+            color: #ffe484;
+            font-weight: 800;
+        }
+        .go-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .go-btn {
+            padding: 13px 22px;
+            border-radius: 50px;
+            font-size: 15px;
+            font-weight: 700;
+            border: none;
+            cursor: pointer;
+            letter-spacing: 0.3px;
+            color: #fff;
+            transition: all 0.2s ease;
+        }
+        .go-btn:active {
+            transform: scale(0.9);
+        }
+        .go-btn-retry {
+            background: linear-gradient(135deg, #2ecc71, #27ae60);
+        }
+        .go-btn-menu {
+            background: rgba(255, 255, 255, 0.1);
+            border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+        #collection-screen {
+            padding: 20px 14px;
+            gap: 14px;
+            overflow-y: auto;
+            justify-content: flex-start;
+            background: #0d0d1f;
+        }
+        #collection-screen h2 {
+            color: #fff;
+            font-size: 22px;
+            font-weight: 800;
+            text-align: center;
+            margin-top: 8px;
+        }
+        .collection-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(85px, 1fr));
+            gap: 10px;
+            width: 100%;
+            max-width: 380px;
+            padding-bottom: 16px;
+        }
+        .collection-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 14px;
+            padding: 12px 6px;
+            text-align: center;
+            cursor: pointer;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+        }
+        .collection-card:active {
+            background: rgba(255, 255, 255, 0.16);
+            transform: scale(0.93);
+        }
+        .card-emoji {
+            font-size: 34px;
+            line-height: 1;
+        }
+        .card-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        .card-dot.healthy {
+            background: #2ecc71;
+        }
+        .card-dot.harmful {
+            background: #e74c3c;
+        }
+        .card-name {
+            font-size: 11px;
+            color: #ccd;
+            font-weight: 600;
+        }
+        #collection-detail {
+            display: none;
+            text-align: center;
+            color: #fff;
+        }
+        .detail-emoji {
+            font-size: 64px;
+        }
+        .detail-name {
+            font-size: 22px;
+            font-weight: 800;
+            margin: 6px 0;
+        }
+        .detail-info {
+            font-size: 14px;
+            color: #ccd;
+            line-height: 1.5;
+            max-width: 300px;
+        }
+        .detail-type {
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 12px;
+            border-radius: 20px;
+            display: inline-block;
+            margin: 4px 0 10px;
+        }
+        .detail-type.healthy {
+            background: rgba(46, 204, 113, 0.3);
+            color: #2ecc71;
+        }
+        .detail-type.harmful {
+            background: rgba(231, 76, 60, 0.3);
+            color: #e74c3c;
+        }
+        .btn-back {
+            background: rgba(255, 255, 255, 0.07);
+            border: 2px solid rgba(255, 255, 255, 0.18);
+            color: #fff;
+            padding: 11px 24px;
+            border-radius: 50px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div id="menu-screen" class="screen active">
+            <div class="logo">🏃‍♂️</div>
+            <h1>Фуд-<span>Ран</span></h1>
+            <p class="subtitle">Беги, собирай полезное, уклоняйся от вредного!</p>
+            <button class="btn btn-play" id="btn-play">▶ Играть</button>
+            <button class="btn btn-collection" id="btn-collection-menu">📚 Коллекция еды</button>
+            <div class="stats-row">
+                <button class="btn btn-stats" id="btn-record">🏆 Рекорд: <span id="record-val">0</span></button>
+                <button class="btn btn-stats" id="btn-last">📋 Последняя: <span id="last-val">—</span></button>
+            </div>
+            <div class="social-links">
+                <a href="https://vk.com/ecokostik" target="_blank"><svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M15.07 2H8.93C3.33 2 2 3.33 2 8.93v6.14C2 20.67 3.33 22 8.93 22h6.14C20.67 22 22 20.67 22 15.07V8.93C22 3.33 20.67 2 15.07 2zM18.15 16.27h-1.8c-.66 0-.86-.52-2.06-1.7-1.04-.98-1.5-1.12-1.76-1.12-.36 0-.46.1-.46.6v1.62c0 .44-.14.7-1.3.7-1.92 0-4.04-1.16-5.54-3.3C3.63 11.3 3 8.53 3 8.23c0-.2.16-.44.62-.44h1.8c.46 0 .64.2.82.7.9 2.6 2.4 4.88 3.02 4.88.24 0 .34-.1.34-.7V9.9c-.08-1.24-.7-1.34-.7-1.78 0-.22.18-.38.48-.38h2.82c.4 0 .54.2.54.64v3.46c0 .38.16.52.28.52.24 0 .44-.14.88-.58 1.36-1.52 2.34-3.86 2.34-3.86.12-.3.34-.44.8-.44h1.8c.56 0 .68.3.56.66-.24.8-2.6 4.44-2.6 4.44-.2.34-.28.5 0 .88.2.3.88.86 1.34 1.4.76.88 1.34 1.6 1.5 2.08.16.48-.1.7-.62.7z"/></svg></a>
+                <a href="https://t.me/ecobones" target="_blank"><svg width="22" height="22" viewBox="0 0 24 24" fill="white"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.02-1.96 1.25-5.54 3.66-.52.36-1 .53-1.42.52-.47-.01-1.37-.26-2.04-.48-.82-.27-1.47-.42-1.42-.88.03-.24.37-.49 1.02-.74 4.01-1.75 6.68-2.9 8.01-3.45 3.81-1.58 4.6-1.86 5.12-1.87.11 0 .37.03.54.17.14.12.18.28.2.45-.01.06.01.24 0 .38z"/></svg></a>
+            </div>
+        </div>
+        <div id="game-screen" class="screen">
+            <canvas id="game-canvas"></canvas>
+            <div id="game-hud">
+                <div class="hud-top-row"><span id="hud-time">⏱ 0s</span><span id="hud-score">⭐ 0</span></div>
+                <div class="hud-lives-row" id="hud-lives"><span class="heart">❤️</span><span class="heart">❤️</span><span class="heart">❤️</span></div>
+            </div>
+            <button id="hud-pause-btn">⏸</button>
+            <div id="pause-overlay"><div class="pause-card"><h3>⏸ Пауза</h3><button class="go-btn go-btn-retry" id="pause-resume">▶ Продолжить</button><button class="go-btn go-btn-menu" id="pause-quit">🏠 В меню</button></div></div>
+            <div id="gameover-overlay"><div class="go-card"><div class="go-emoji" id="go-emoji">😢</div><div class="go-title" id="go-title">Игра окончена!</div><div class="go-score" id="go-score">0</div><div class="go-record" id="go-record">Рекорд: 0</div><div class="go-buttons"><button class="go-btn go-btn-retry" id="go-retry">🔄 Ещё раз</button><button class="go-btn go-btn-menu" id="go-menu">🏠 В меню</button></div></div></div>
+        </div>
+        <div id="collection-screen" class="screen">
+            <h2>📚 Коллекция еды</h2>
+            <div class="collection-grid" id="collection-grid"></div>
+            <div id="collection-detail"><div class="detail-emoji" id="detail-emoji"></div><div class="detail-name" id="detail-name"></div><div class="detail-type" id="detail-type"></div><div class="detail-info" id="detail-info"></div><button class="btn-back" id="btn-detail-back">← Назад к коллекции</button></div>
+            <button class="btn-back" id="btn-collection-back" style="margin-top:6px;">← В главное меню</button>
+        </div>
+    </div>
+    <script>
+        (function() {
+            const FOOD_DATA = [
+                { id: 'apple', name: 'Яблоко', emoji: '🍎', type: 'healthy' },
+                { id: 'banana', name: 'Банан', emoji: '🍌', type: 'healthy' },
+                { id: 'orange', name: 'Апельсин', emoji: '🍊', type: 'healthy' },
+                { id: 'grape', name: 'Виноград', emoji: '🍇', type: 'healthy' },
+                { id: 'strawberry', name: 'Клубника', emoji: '🍓', type: 'healthy' },
+                { id: 'blueberry', name: 'Черника', emoji: '🫐', type: 'healthy' },
+                { id: 'watermelon', name: 'Арбуз', emoji: '🍉', type: 'healthy' },
+                { id: 'kiwi', name: 'Киви', emoji: '🥝', type: 'healthy' },
+                { id: 'pineapple', name: 'Ананас', emoji: '🍍', type: 'healthy' },
+                { id: 'pear', name: 'Груша', emoji: '🍐', type: 'healthy' },
+                { id: 'carrot', name: 'Морковь', emoji: '🥕', type: 'healthy' },
+                { id: 'broccoli', name: 'Брокколи', emoji: '🥦', type: 'healthy' },
+                { id: 'fish', name: 'Рыба', emoji: '🐟', type: 'healthy' },
+                { id: 'egg', name: 'Яйцо', emoji: '🥚', type: 'healthy' },
+                { id: 'nuts', name: 'Орехи', emoji: '🌰', type: 'healthy' },
+                { id: 'milk', name: 'Молоко', emoji: '🥛', type: 'healthy' },
+                { id: 'avocado', name: 'Авокадо', emoji: '🥑', type: 'healthy' },
+                { id: 'tomato', name: 'Помидор', emoji: '🍅', type: 'healthy' },
+                { id: 'cucumber', name: 'Огурец', emoji: '🥒', type: 'healthy' },
+                { id: 'bread', name: 'Хлеб', emoji: '🍞', type: 'healthy' },
+                { id: 'rice', name: 'Рис', emoji: '🍚', type: 'healthy' },
+                { id: 'chicken', name: 'Курица', emoji: '🍗', type: 'healthy' },
+                { id: 'pasta', name: 'Паста', emoji: '🍝', type: 'healthy' },
+                { id: 'salad', name: 'Салат', emoji: '🥗', type: 'healthy' },
+                { id: 'sushi', name: 'Суши', emoji: '🍣', type: 'healthy' },
+                { id: 'onigiri', name: 'Онигири', emoji: '🍙', type: 'healthy' },
+                { id: 'honey', name: 'Мёд', emoji: '🍯', type: 'healthy' },
+                { id: 'coconut', name: 'Кокос', emoji: '🥥', type: 'healthy' },
+                { id: 'corn', name: 'Кукуруза', emoji: '🌽', type: 'healthy' },
+                { id: 'peas', name: 'Горох', emoji: '🫛', type: 'healthy' },
+                { id: 'onion', name: 'Лук', emoji: '🧅', type: 'healthy' },
+                { id: 'potato', name: 'Картофель', emoji: '🥔', type: 'healthy' },
+                { id: 'burger', name: 'Бургер', emoji: '🍔', type: 'harmful' },
+                { id: 'pizza', name: 'Пицца', emoji: '🍕', type: 'harmful' },
+                { id: 'pastry', name: 'Пирожное', emoji: '🧁', type: 'harmful' },
+                { id: 'fries', name: 'Картофель фри', emoji: '🍟', type: 'harmful' },
+                { id: 'donut', name: 'Пончик', emoji: '🍩', type: 'harmful' },
+                { id: 'candy', name: 'Конфеты', emoji: '🍬', type: 'harmful' },
+                { id: 'soda', name: 'Газировка', emoji: '🥤', type: 'harmful' },
+                { id: 'bacon', name: 'Бекон', emoji: '🥓', type: 'harmful' },
+                { id: 'hotdog', name: 'Хот-дог', emoji: '🌭', type: 'harmful' },
+                { id: 'icecream', name: 'Мороженое', emoji: '🍦', type: 'harmful' },
+                { id: 'cake', name: 'Торт', emoji: '🎂', type: 'harmful' },
+                { id: 'beer', name: 'Пиво', emoji: '🍺', type: 'harmful' },
+                { id: 'wine', name: 'Вино', emoji: '🍷', type: 'harmful' },
+                { id: 'champagne', name: 'Шампанское', emoji: '🍾', type: 'harmful' },
+                { id: 'cheese', name: 'Сыр', emoji: '🧀', type: 'harmful' },
+                { id: 'chocolate', name: 'Шоколад', emoji: '🍫', type: 'harmful' }
+            ];
+            const $ = s => document.querySelector(s);
+            const app = $('#app');
+            const menuScreen = $('#menu-screen');
+            const gameScreen = $('#game-screen');
+            const collectionScreen = $('#collection-screen');
+            const canvas = $('#game-canvas');
+            const ctx = canvas.getContext('2d');
+            const pauseOverlay = $('#pause-overlay');
+            const gameoverOverlay = $('#gameover-overlay');
+            const hudTime = $('#hud-time');
+            const hudScore = $('#hud-score');
+            const hudLives = $('#hud-lives');
+            const recordVal = $('#record-val');
+            const lastVal = $('#last-val');
+            const collectionGrid = $('#collection-grid');
+            const collectionDetail = $('#collection-detail');
+
+            const state = {
+                screen: 'menu',
+                gameRunning: false,
+                gamePaused: false,
+                score: 0,
+                lives: 3,
+                gameTime: 0,
+                lane: 0,
+                playerX: 0,
+                playerTargetX: 0,
+                speed: 0.24,
+                baseSpeed: 0.24,
+                maxSpeed: 0.75,
+                speedIncrement: 0.015,
+                spawnInterval: 1.0,
+                minSpawnInterval: 0.3,
+                spawnTimer: 0,
+                foods: [],
+                bgGlows: [],
+                roadMarkers: [],
+                invincibleTimer: 0,
+                shakeTimer: 0,
+                shakeIntensity: 0,
+                record: 0,
+                lastScore: null,
+                discoveredFoods: {},
+                canvasW: 0,
+                canvasH: 0,
+                roadTopY: 0,
+                roadBottomY: 0,
+                roadTopWidth: 0,
+                roadBottomWidth: 0,
+                laneWidthBottom: 0,
+                playerProgress: 0.88,
+                speedIncrementAcc: 0,
+                markerSpawnTimer: 0,
+            };
+
+            const MAX_GLOWS = 2;
+
+            function loadStorage() {
+                try {
+                    state.record = parseInt(localStorage.getItem('foodRun_record')) || 0;
+                    const ls = localStorage.getItem('foodRun_lastScore');
+                    state.lastScore = ls && ls !== 'null' ? parseInt(ls) : null;
+                    const disc = localStorage.getItem('foodRun_collection');
+                    if (disc) state.discoveredFoods = JSON.parse(disc);
+                } catch (e) {
+                    state.record = 0;
+                    state.lastScore = null;
+                    state.discoveredFoods = {};
+                }
+            }
+
+            function saveStorage() {
+                try {
+                    localStorage.setItem('foodRun_record', state.record);
+                    localStorage.setItem('foodRun_lastScore', state.lastScore);
+                    localStorage.setItem('foodRun_collection', JSON.stringify(state.discoveredFoods));
+                } catch (e) {}
+            }
+
+            function updateMenuStats() {
+                recordVal.textContent = state.record;
+                lastVal.textContent = state.lastScore !== null ? state.lastScore : '—';
+            }
+
+            function showScreen(name) {
+                state.screen = name;
+                [menuScreen, gameScreen, collectionScreen].forEach(s => s.classList.remove('active'));
+                if (name === 'menu') menuScreen.classList.add('active');
+                else if (name === 'game') gameScreen.classList.add('active');
+                else if (name === 'collection') {
+                    collectionScreen.classList.add('active');
+                    renderCollection();
+                    collectionDetail.style.display = 'none';
+                    collectionGrid.style.display = 'grid';
+                }
+            }
+
+            function renderCollection() {
+                collectionGrid.innerHTML = '';
+                const discovered = Object.keys(state.discoveredFoods);
+                if (discovered.length === 0) {
+                    collectionGrid.innerHTML = '<p style="color:#889;text-align:center;width:100%;padding:30px;">Пока ничего не открыто.</p>';
+                    return;
+                }
+                discovered.forEach(foodId => {
+                    const fd = FOOD_DATA.find(f => f.id === foodId);
+                    if (!fd) return;
+                    const card = document.createElement('div');
+                    card.className = 'collection-card';
+                    card.innerHTML = `
+                        <span class="card-emoji">${fd.emoji}</span>
+                        <span class="card-dot ${fd.type}"></span>
+                        <span class="card-name">${fd.name}</span>
+                    `;
+                    card.addEventListener('click', () => showCollectionDetail(fd));
+                    collectionGrid.appendChild(card);
+                });
+            }
+
+            function showCollectionDetail(fd) {
+                collectionGrid.style.display = 'none';
+                collectionDetail.style.display = 'block';
+                $('#detail-emoji').textContent = fd.emoji;
+                $('#detail-name').textContent = fd.name;
+                const typeEl = $('#detail-type');
+                typeEl.textContent = fd.type === 'healthy' ? '✅ Полезная еда' : '🗑️ Вредная еда';
+                typeEl.className = 'detail-type ' + fd.type;
+                $('#detail-info').textContent = fd.info || '';
+            }
+
+            function updateHUD() {
+                hudScore.textContent = '⭐ ' + state.score;
+                hudTime.textContent = '⏱ ' + Math.floor(state.gameTime) + 's';
+                const hearts = hudLives.querySelectorAll('.heart');
+                hearts.forEach((h, i) => h.classList.toggle('lost', i >= state.lives));
+            }
+
+            function resizeCanvas() {
+                const rect = app.getBoundingClientRect();
+                const w = rect.width,
+                    h = rect.height;
+                state.canvasW = w;
+                state.canvasH = h;
+                canvas.width = w * (window.devicePixelRatio || 1);
+                canvas.height = h * (window.devicePixelRatio || 1);
+                canvas.style.width = w + 'px';
+                canvas.style.height = h + 'px';
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+                state.roadTopY = h * 0.26;
+                state.roadBottomY = h * 0.92;
+                state.roadTopWidth = w * 0.3;
+                state.roadBottomWidth = w * 0.9;
+                state.laneWidthBottom = state.roadBottomWidth / 3;
+                state.playerTargetX = w / 2 + state.lane * state.laneWidthBottom;
+                state.playerX = state.playerTargetX;
+            }
+
+            function roadWidthAt(p) { return state.roadTopWidth + p * (state.roadBottomWidth - state.roadTopWidth); }
+            function roadYAt(p) { return state.roadTopY + p * (state.roadBottomY - state.roadTopY); }
+            function laneCenterX(lane, p) {
+                const rw = roadWidthAt(p);
+                return state.canvasW / 2 + lane * (rw / 3);
+            }
+            function scaleAt(p) { return 0.22 + p * 1.05; }
+
+            function addBackgroundEffect(color, emoji) {
+                // только свечение, без частиц
+                while (state.bgGlows.length >= MAX_GLOWS) {
+                    state.bgGlows.shift();
+                }
+                state.bgGlows.push({
+                    x: state.canvasW / 2,
+                    yBottom: state.canvasH,
+                    height: state.canvasH * 0.55,
+                    life: 0.9,
+                    maxLife: 0.9,
+                    color
+                });
+            }
+
+            function spawnFood() {
+                const fd = FOOD_DATA[Math.floor(Math.random() * FOOD_DATA.length)];
+                const lane = Math.floor(Math.random() * 3) - 1;
+                state.foods.push({ foodData: fd, lane, progress: -0.1, collected: false });
+            }
+
+            function resetGame() {
+                state.gameRunning = true;
+                state.gamePaused = false;
+                state.score = 0;
+                state.lives = 3;
+                state.gameTime = 0;
+                state.lane = 0;
+                state.speed = state.baseSpeed;
+                state.spawnInterval = 1.0;
+                state.spawnTimer = 0;
+                state.foods = [];
+                state.bgGlows = [];
+                state.roadMarkers = [];
+                state.invincibleTimer = 0;
+                state.shakeTimer = 0;
+                state.shakeIntensity = 0;
+                state.speedIncrementAcc = 0;
+                state.markerSpawnTimer = 0;
+                state.playerTargetX = state.canvasW / 2;
+                state.playerX = state.playerTargetX;
+                updateHUD();
+                gameoverOverlay.classList.remove('visible');
+                pauseOverlay.classList.remove('visible');
+            }
+
+            function endGame() {
+                state.gameRunning = false;
+                state.lastScore = state.score;
+                if (state.score > state.record) state.record = state.score;
+                saveStorage();
+                updateMenuStats();
+                const isRecord = state.score > 0 && state.score >= state.record;
+                $('#go-score').textContent = state.score;
+                $('#go-record').textContent = 'Рекорд: ' + state.record;
+                const goTitle = $('#go-title'),
+                    goRecord = $('#go-record');
+                goTitle.textContent = isRecord ? '🏆 Новый рекорд!' : 'Игра окончена!';
+                goTitle.classList.toggle('new-record', isRecord);
+                goRecord.classList.toggle('new-record', isRecord);
+                $('#go-emoji').textContent = isRecord ? '🏆' : '😢';
+                gameoverOverlay.classList.add('visible');
+            }
+
+            let lastTime = 0;
+
+            function update(dt) {
+                if (!state.gameRunning || state.gamePaused) return;
+                if (dt > 0.1) dt = 0.1;
+                state.gameTime += dt;
+                state.invincibleTimer = Math.max(0, state.invincibleTimer - dt);
+                state.shakeTimer = Math.max(0, state.shakeTimer - dt);
+
+                state.speedIncrementAcc += dt;
+                if (state.speedIncrementAcc >= 7) {
+                    state.speedIncrementAcc -= 7;
+                    state.speed = Math.min(state.maxSpeed, state.speed + state.speedIncrement);
+                    state.spawnInterval = Math.max(state.minSpawnInterval, state.spawnInterval - 0.05);
+                }
+
+                state.spawnTimer += dt;
+                if (state.spawnTimer >= state.spawnInterval) {
+                    state.spawnTimer = 0;
+                    if (state.foods.length < 8) spawnFood();
+                }
+
+                state.markerSpawnTimer += dt;
+                if (state.markerSpawnTimer >= 0.18) {
+                    state.markerSpawnTimer = 0;
+                    const lane = Math.floor(Math.random() * 3) - 1;
+                    state.roadMarkers.push({ lane, progress: 0 });
+                }
+                for (let i = state.roadMarkers.length - 1; i >= 0; i--) {
+                    state.roadMarkers[i].progress += state.speed * 2.0 * dt;
+                    if (state.roadMarkers[i].progress >= 1) state.roadMarkers.splice(i, 1);
+                }
+
+                for (const f of state.foods) {
+                    if (!f.collected) f.progress += state.speed * dt;
+                }
+
+                const playerP = state.playerProgress;
+                for (const f of state.foods) {
+                    if (f.collected) continue;
+                    const threshold = f.foodData.type === 'healthy' ?
+                        { low: -0.08, high: 0.10 } :
+                        { low: -0.03, high: 0.05 };
+                    if (f.progress >= playerP + threshold.low && f.progress <= playerP + threshold.high && f.lane === state.lane) {
+                        if (f.foodData.type === 'healthy') {
+                            state.score += Math.max(1, Math.floor(state.gameTime));
+                            addBackgroundEffect('#2ecc71', f.foodData.emoji);
+                            if (!state.discoveredFoods[f.foodData.id]) {
+                                state.discoveredFoods[f.foodData.id] = true;
+                                saveStorage();
+                            }
+                        } else {
+                            if (state.invincibleTimer <= 0) {
+                                state.lives--;
+                                state.invincibleTimer = 0.8;
+                                state.shakeTimer = 0.5;
+                                state.shakeIntensity = 18;
+                                addBackgroundEffect('#e74c3c', f.foodData.emoji);
+                                if (!state.discoveredFoods[f.foodData.id]) {
+                                    state.discoveredFoods[f.foodData.id] = true;
+                                    saveStorage();
+                                }
+                            }
+                        }
+                        f.collected = true;
+                    }
+                }
+
+                state.foods = state.foods.filter(f => !f.collected && f.progress <= 1.15);
+
+                for (const g of state.bgGlows) g.life -= dt;
+                state.bgGlows = state.bgGlows.filter(g => g.life > 0);
+
+                const dx = state.playerTargetX - state.playerX;
+                const lerpFactor = 1 - Math.exp(-16 * dt);
+                state.playerX += dx * lerpFactor;
+                if (Math.abs(dx) < 0.15) state.playerX = state.playerTargetX;
+
+                if (state.lives <= 0 && state.gameRunning) endGame();
+            }
+
+            function drawRoad() {
+                const w = state.canvasW,
+                    h = state.canvasH;
+                const rty = state.roadTopY,
+                    rby = state.roadBottomY;
+                const rtw = state.roadTopWidth,
+                    rbw = state.roadBottomWidth;
+
+                const skyGrad = ctx.createLinearGradient(0, 0, 0, h);
+                skyGrad.addColorStop(0, '#0a0a24');
+                skyGrad.addColorStop(1, '#151530');
+                ctx.fillStyle = skyGrad;
+                ctx.fillRect(0, 0, w, h);
+
+                for (const g of state.bgGlows) {
+                    const progress = g.life / g.maxLife;
+                    const alpha = progress * 0.45;
+                    const grad = ctx.createLinearGradient(0, g.yBottom - g.height, 0, g.yBottom);
+                    let rgba;
+                    if (g.color === '#2ecc71') rgba = `rgba(46,204,113,${alpha})`;
+                    else if (g.color === '#e74c3c') rgba = `rgba(231,76,60,${alpha})`;
+                    else rgba = g.color.replace(')', `,${alpha})`).replace('rgb', 'rgba');
+                    grad.addColorStop(0, 'rgba(0,0,0,0)');
+                    grad.addColorStop(1, rgba);
+                    ctx.fillStyle = grad;
+                    ctx.fillRect(0, g.yBottom - g.height, w, g.height);
+                }
+
+                const leftTop = w / 2 - rtw / 2,
+                    rightTop = w / 2 + rtw / 2;
+                const leftBottom = w / 2 - rbw / 2,
+                    rightBottom = w / 2 + rbw / 2;
+
+                ctx.fillStyle = '#14142b';
+                ctx.beginPath();
+                ctx.moveTo(leftTop, rty);
+                ctx.lineTo(rightTop, rty);
+                ctx.lineTo(rightBottom, rby);
+                ctx.lineTo(leftBottom, rby);
+                ctx.closePath();
+                ctx.fill();
+
+                for (const m of state.roadMarkers) {
+                    const p = m.progress;
+                    if (p < 0 || p > 1) continue;
+                    const cx = laneCenterX(m.lane, p);
+                    const cy = roadYAt(p);
+                    const sc = scaleAt(p);
+                    const ww = 4 * sc;
+                    const hh = 18 * sc;
+                    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                    ctx.fillRect(cx - ww / 2, cy - hh / 2, ww, hh);
+                }
+
+                ctx.save();
+                ctx.shadowBlur = 4;
+                ctx.shadowColor = 'rgba(0, 200, 255, 0.2)';
+                ctx.strokeStyle = 'rgba(0, 200, 255, 0.25)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(leftTop, rty);
+                ctx.lineTo(leftBottom, rby);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(rightTop, rty);
+                ctx.lineTo(rightBottom, rby);
+                ctx.stroke();
+
+                ctx.shadowColor = 'rgba(255, 200, 255, 0.2)';
+                ctx.strokeStyle = 'rgba(255, 200, 255, 0.25)';
+                ctx.lineWidth = 1.5;
+                ctx.beginPath();
+                ctx.moveTo(w / 2 - rtw / 6, rty);
+                ctx.lineTo(w / 2 - rbw / 6, rby);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(w / 2 + rtw / 6, rty);
+                ctx.lineTo(w / 2 + rbw / 6, rby);
+                ctx.stroke();
+                ctx.restore();
+            }
+
+            function drawFoodItems() {
+                for (const f of state.foods) {
+                    if (f.collected) continue;
+                    const p = f.progress;
+                    if (p < -0.05 || p > 1.15) continue;
+                    const cx = laneCenterX(f.lane, p);
+                    const cy = roadYAt(p);
+                    const scale = scaleAt(p);
+                    const size = 48 * scale; // уменьшенный размер еды
+                    const half = size / 2;
+                    const circleRadius = half * 1.35;
+                    const fd = f.foodData;
+                    const borderColor = fd.type === 'healthy' ? '#2ecc71' : '#e74c3c';
+
+                    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+                    ctx.beginPath();
+                    ctx.ellipse(cx, cy + size * 0.25, half * 0.8, half * 0.2, 0, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    const glow = ctx.createRadialGradient(cx, cy, half * 0.6, cx, cy, circleRadius * 1.4);
+                    glow.addColorStop(0, borderColor.replace(')', ',0.3)').replace('rgb', 'rgba'));
+                    glow.addColorStop(1, 'rgba(0,0,0,0)');
+                    ctx.fillStyle = glow;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, circleRadius * 1.4, 0, Math.PI * 2);
+                    ctx.fill();
+
+                    ctx.strokeStyle = borderColor;
+                    ctx.lineWidth = 2.5 * scale;
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, circleRadius, 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    ctx.font = `${size * 0.9}px 'Segoe UI Emoji','Apple Color Emoji'`;
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText(fd.emoji, cx, cy);
+                }
+            }
+
+            function drawPlayer() {
+                const px = state.playerX;
+                const py = roadYAt(state.playerProgress);
+                const scale = scaleAt(state.playerProgress);
+                const size = 58 * scale; // увеличенный размер игрока
+                const half = size / 2;
+                const circleRadius = half * 1.2;
+
+                if (state.invincibleTimer > 0 && Math.floor(state.invincibleTimer * 15) % 2 === 0) {
+                    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+                    ctx.beginPath();
+                    ctx.arc(px, py, circleRadius * 1.4, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+
+                ctx.fillStyle = 'rgba(0,0,0,0.4)';
+                ctx.beginPath();
+                ctx.ellipse(px, py + size * 0.25, half * 0.75, half * 0.2, 0, 0, Math.PI * 2);
+                ctx.fill();
+
+                const glow = ctx.createRadialGradient(px, py, half * 0.6, px, py, circleRadius * 1.5);
+                glow.addColorStop(0, 'rgba(241,196,15,0.25)');
+                glow.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = glow;
+                ctx.beginPath();
+                ctx.arc(px, py, circleRadius * 1.5, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.strokeStyle = '#f1c40f';
+                ctx.lineWidth = 3 * scale;
+                ctx.beginPath();
+                ctx.arc(px, py, circleRadius, 0, Math.PI * 2);
+                ctx.stroke();
+
+                ctx.font = `${size * 1.1}px 'Segoe UI Emoji','Apple Color Emoji'`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('🏃', px, py);
+            }
+
+            function drawFog() {
+                const rty = state.roadTopY;
+                const fogTop = rty - 100;
+                const fogBottom = rty + 150;
+                const fog = ctx.createLinearGradient(0, fogTop, 0, fogBottom);
+                fog.addColorStop(0, '#0a0a24');
+                fog.addColorStop(0.4, 'rgba(10,10,36,0.94)');
+                fog.addColorStop(1, 'rgba(10,10,36,0)');
+                ctx.fillStyle = fog;
+                ctx.fillRect(0, fogTop, state.canvasW, fogBottom - fogTop);
+            }
+
+            function render() {
+                ctx.clearRect(0, 0, state.canvasW, state.canvasH);
+                let sx = 0,
+                    sy = 0;
+                if (state.shakeTimer > 0) {
+                    const i = state.shakeIntensity * (state.shakeTimer / 0.5);
+                    sx = (Math.random() - 0.5) * i * 2;
+                    sy = (Math.random() - 0.5) * i * 2;
+                }
+                ctx.save();
+                ctx.translate(sx, sy);
+                drawRoad();
+                drawFoodItems();
+                drawPlayer();
+                drawFog();
+                ctx.restore();
+            }
+
+            function gameLoop(timestamp) {
+                if (!lastTime) lastTime = timestamp;
+                const dt = Math.min(0.1, (timestamp - lastTime) / 1000);
+                lastTime = timestamp;
+                if (state.screen === 'game') {
+                    update(dt);
+                    render();
+                    updateHUD();
+                }
+                requestAnimationFrame(gameLoop);
+            }
+
+            function moveLane(delta) {
+                if (!state.gameRunning || state.gamePaused) return;
+                const newLane = Math.max(-1, Math.min(1, state.lane + delta));
+                if (newLane !== state.lane) {
+                    state.lane = newLane;
+                    state.playerTargetX = state.canvasW / 2 + state.lane * state.laneWidthBottom;
+                }
+            }
+
+            let touchStartX = 0,
+                touchStartY = 0,
+                touchActive = false;
+            canvas.addEventListener('touchstart', e => {
+                if (!state.gameRunning || state.gamePaused) return;
+                if (e.touches.length === 1) {
+                    touchStartX = e.touches[0].clientX;
+                    touchStartY = e.touches[0].clientY;
+                    touchActive = true;
+                }
+            }, { passive: false });
+            canvas.addEventListener('touchmove', e => {
+                if (touchActive && state.gameRunning && !state.gamePaused) e.preventDefault();
+            }, { passive: false });
+            canvas.addEventListener('touchend', e => {
+                if (!touchActive) return;
+                touchActive = false;
+                if (!state.gameRunning || state.gamePaused) return;
+                const dx = (e.changedTouches[0]?.clientX || touchStartX) - touchStartX;
+                const dy = (e.changedTouches[0]?.clientY || touchStartY) - touchStartY;
+                if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 25) moveLane(dx > 0 ? 1 : -1);
+            });
+            canvas.addEventListener('mousedown', e => {
+                if (!state.gameRunning || state.gamePaused) return;
+                touchStartX = e.clientX;
+                touchStartY = e.clientY;
+                touchActive = true;
+            });
+            window.addEventListener('mouseup', e => {
+                if (!touchActive) return;
+                touchActive = false;
+                if (!state.gameRunning || state.gamePaused) return;
+                const dx = e.clientX - touchStartX,
+                    dy = e.clientY - touchStartY;
+                if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 20) moveLane(dx > 0 ? 1 : -1);
+            });
+            window.addEventListener('keydown', e => {
+                if (state.screen !== 'game' || !state.gameRunning || state.gamePaused) return;
+                if (e.key === 'ArrowLeft' || e.key === 'a') { e.preventDefault();
+                    moveLane(-1); } else if (e.key === 'ArrowRight' || e.key === 'd') { e.preventDefault();
+                    moveLane(1); }
+            });
+
+            $('#btn-play').addEventListener('click', () => { resizeCanvas();
+                resetGame();
+                showScreen('game');
+                lastTime = performance.now(); });
+            $('#hud-pause-btn').addEventListener('click', () => { if (state.gameRunning && !state.gamePaused) { state
+                    .gamePaused = true;
+                pauseOverlay.classList.add('visible'); } });
+            $('#pause-resume').addEventListener('click', () => { state.gamePaused = false;
+                pauseOverlay.classList.remove('visible');
+                lastTime = performance.now(); });
+            $('#pause-quit').addEventListener('click', () => { state.gameRunning = false;
+                state.lastScore = state.score; if (state.score > state.record) state.record = state.score;
+                saveStorage();
+                updateMenuStats();
+                pauseOverlay.classList.remove('visible');
+                showScreen('menu'); });
+            $('#go-retry').addEventListener('click', () => { resizeCanvas();
+                resetGame();
+                showScreen('game');
+                lastTime = performance.now(); });
+            $('#go-menu').addEventListener('click', () => { state.gameRunning = false;
+                gameoverOverlay.classList.remove('visible');
+                showScreen('menu'); });
+            $('#btn-collection-menu').addEventListener('click', () => showScreen('collection'));
+            $('#btn-collection-back').addEventListener('click', () => showScreen('menu'));
+            $('#btn-detail-back').addEventListener('click', () => { collectionDetail.style.display = 'none';
+                collectionGrid.style.display = 'grid'; });
+
+            window.addEventListener('resize', () => { resizeCanvas();
+                state.playerTargetX = state.canvasW / 2 + state.lane * state.laneWidthBottom;
+                state.playerX = state.playerTargetX; });
+
+            function init() { loadStorage();
+                updateMenuStats();
+                resizeCanvas();
+                showScreen('menu');
+                requestAnimationFrame(gameLoop); }
+            document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', init) : init();
+        })();
+    </script>
+</body>
+</html>
