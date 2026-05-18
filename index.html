@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover, maximum-scale=1.0, minimum-scale=1.0">
-    <title>Эко-Ран</title>
+    <title>Фуд-Ран | Неоновый забег</title>
     <style>
         :root {
             --bg: #0a0a1a;
@@ -695,7 +695,6 @@
             function scaleAt(p) { return 0.22 + p * 1.05; }
 
             function addBackgroundEffect(color, emoji) {
-                // только свечение, без частиц
                 while (state.bgGlows.length >= MAX_GLOWS) {
                     state.bgGlows.shift();
                 }
@@ -929,7 +928,7 @@
                     const cx = laneCenterX(f.lane, p);
                     const cy = roadYAt(p);
                     const scale = scaleAt(p);
-                    const size = 48 * scale; // уменьшенный размер еды
+                    const size = 48 * scale;
                     const half = size / 2;
                     const circleRadius = half * 1.35;
                     const fd = f.foodData;
@@ -965,7 +964,7 @@
                 const px = state.playerX;
                 const py = roadYAt(state.playerProgress);
                 const scale = scaleAt(state.playerProgress);
-                const size = 58 * scale; // увеличенный размер игрока
+                const size = 58 * scale;
                 const half = size / 2;
                 const circleRadius = half * 1.2;
 
@@ -1003,6 +1002,8 @@
 
             function drawFog() {
                 const rty = state.roadTopY;
+                const rby = state.roadBottomY;
+                // Верхний туман
                 const fogTop = rty - 100;
                 const fogBottom = rty + 150;
                 const fog = ctx.createLinearGradient(0, fogTop, 0, fogBottom);
@@ -1011,6 +1012,16 @@
                 fog.addColorStop(1, 'rgba(10,10,36,0)');
                 ctx.fillStyle = fog;
                 ctx.fillRect(0, fogTop, state.canvasW, fogBottom - fogTop);
+
+                // Нижний туман (скрывает обрыв дороги и уходящие продукты)
+                const bottomFogTop = rby - 30;
+                const bottomFogBottom = state.canvasH;
+                const bottomFog = ctx.createLinearGradient(0, bottomFogTop, 0, bottomFogBottom);
+                bottomFog.addColorStop(0, 'rgba(10,10,36,0)');
+                bottomFog.addColorStop(0.6, 'rgba(10,10,36,0.8)');
+                bottomFog.addColorStop(1, '#0a0a24');
+                ctx.fillStyle = bottomFog;
+                ctx.fillRect(0, bottomFogTop, state.canvasW, bottomFogBottom - bottomFogTop);
             }
 
             function render() {
