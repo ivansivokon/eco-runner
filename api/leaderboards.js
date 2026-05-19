@@ -2,7 +2,6 @@
 
 const KV_URL = process.env.KV_REST_API_URL;
 const KV_TOKEN = process.env.KV_REST_API_TOKEN;
-
 const LEADERBOARD_KEY = 'global_leaderboard';
 const MAX_ENTRIES = 50;
 
@@ -13,25 +12,33 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
+  // Вспомогательная функция для безопасного получения массива из Upstash
+  async function getEntries() {
+    const response = await fetch(`${KV_URL}/get/${LEADERBOARD_KEY}`, {
+      headers: { Authorization: `Bearer ${KV_TOKEN}` }
+    });
+    const json = await response.json();
+    console.log('GET raw response:', JSON.stringify(json));
+
+    if (!json.result) return [];
+
+    let parsed;
+    try {
+      parsed = JSON.parse(json.result);
+    } catch {
+      console.error('JSON parse failed, resetting leaderboard');
+      return [];
+    }
+
+    // Если после парсинга получился не массив – сбрасываем
+    return Array.isArray(parsed) ? parsed : [];
+  }
+
   if (req.method === 'GET') {
     try {
-      const response = await fetch(`${KV_URL}/get/${LEADERBOARD_KEY}`, {
-        headers: { Authorization: `Bearer ${KV_TOKEN}` }
-      });
-      const json = await response.json();
-      console.log('GET response:', JSON.stringify(json));
-
-      // result может быть null (ключ не существует) или строкой с JSON
-      let entries = [];
-      if (json.result) {
-        try {
-          entries = JSON.parse(json.result);
-        } catch (e) {
-          console.error('JSON parse error on GET:', e);
-          entries = [];
-        }
-      }
-      return res.status(200).json(entries.slice(0, 10));
+      const entries = await getEntries();
+      const top = entries.slice(0, 10);
+      return res.status(200).json(top);
     } catch (error) {
       console.error('GET error:', error);
       return res.status(500).json({ error: 'Failed to fetch leaderboard' });
@@ -56,29 +63,15 @@ export default async function handler(req, res) {
         date: new Date().toISOString()
       };
 
-      // 1. Получаем текущий список
-      const getRes = await fetch(`${KV_URL}/get/${LEADERBOARD_KEY}`, {
-        headers: { Authorization: `Bearer ${KV_TOKEN}` }
-      });
-      const getJson = await getRes.json();
-      console.log('GET before save:', JSON.stringify(getJson));
-
-      let entries = [];
-      if (getJson.result) {
-        try {
-          entries = JSON.parse(getJson.result);
-        } catch (e) {
-          console.error('JSON parse error on POST:', e);
-          entries = [];
-        }
-      }
+      // 1. Безопасно получаем массив
+      const entries = await getEntries();
 
       // 2. Добавляем и сортируем
       entries.push(entry);
       entries.sort((a, b) => b.score - a.score);
       const trimmed = entries.slice(0, MAX_ENTRIES);
 
-      // 3. Сохраняем обратно
+      // 3. Сохраняем обратно (всегда как строка JSON)
       const setRes = await fetch(`${KV_URL}/set/${LEADERBOARD_KEY}`, {
         method: 'POST',
         headers: {
@@ -91,15 +84,16 @@ export default async function handler(req, res) {
       console.log('SET response:', JSON.stringify(setJson));
 
       if (!setRes.ok || setJson.result !== 'OK') {
-        throw new Error('Failed to save to Upstash');
+        throw new Error('Upstash SET failed');
       }
 
-      // 4. Находим позицию (может быть не уникальной, берём первый совпадающий)
+      // 4. Определяем позицию (просто по месту в массиве)
       const position = trimmed.findIndex(
-        e => e.name === cleanName && e.score === entry.score
-      ) + 1;
+        e => e.name === cleanName && e.score === entry.score && e.date === entry.date
+      );
+      const realPosition = position === -1 ? trimmed.length : position + 1;
 
-      return res.status(200).json({ success: true, position: position > 0 ? position : trimmed.length });
+      return res.status(200).json({ success: true, position: realPosition });
     } catch (error) {
       console.error('POST error:', error);
       return res.status(500).json({ error: 'Ошибка сервера' });
