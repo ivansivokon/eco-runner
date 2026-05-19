@@ -557,7 +557,7 @@
                 playerTargetX: 0,
                 speed: 0.24,
                 baseSpeed: 0.24,
-                maxSpeed: 0.75,
+                maxSpeed: 0.9,
                 speedIncrement: 0.015,
                 spawnInterval: 1.0,
                 minSpawnInterval: 0.3,
@@ -734,6 +734,7 @@
                 state.markerSpawnTimer = 0;
                 state.playerTargetX = state.canvasW / 2;
                 state.playerX = state.playerTargetX;
+                state.lastTimerValue = 0;
                 updateHUD();
                 gameoverOverlay.classList.remove('visible');
                 pauseOverlay.classList.remove('visible');
@@ -765,7 +766,10 @@
                 state.gameTime += dt;
                 state.invincibleTimer = Math.max(0, state.invincibleTimer - dt);
                 state.shakeTimer = Math.max(0, state.shakeTimer - dt);
-
+                if (state.lastTimerValue <= state.gameTime) {
+                    state.lastTimerValue = state.gameTime + 0.5;
+                    state.score += Math.max(1, Math.floor(state.gameTime / 10.0));
+                }
                 state.speedIncrementAcc += dt;
                 if (state.speedIncrementAcc >= 7) {
                     state.speedIncrementAcc -= 7;
