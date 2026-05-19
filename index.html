@@ -450,6 +450,7 @@
             <p class="subtitle">Беги, собирай полезное, уклоняйся от вредного!</p>
             <button class="btn btn-play" id="btn-play">▶ Играть</button>
             <button class="btn btn-collection" id="btn-collection-menu">📚 Коллекция еды</button>
+            <button class="btn btn-collection" id="btn-leaderboard" style="background: linear-gradient(135deg, #f39c12, #e67e22);">🏅 Лидерборд</button>
             <div class="stats-row">
                 <button class="btn btn-stats" id="btn-record">🏆 Рекорд: <span id="record-val">0</span></button>
                 <button class="btn btn-stats" id="btn-last">📋 Последняя: <span id="last-val">—</span></button>
@@ -467,7 +468,11 @@
             </div>
             <button id="hud-pause-btn">⏸</button>
             <div id="pause-overlay"><div class="pause-card"><h3>⏸ Пауза</h3><button class="go-btn go-btn-retry" id="pause-resume">▶ Продолжить</button><button class="go-btn go-btn-menu" id="pause-quit">🏠 В меню</button></div></div>
-            <div id="gameover-overlay"><div class="go-card"><div class="go-emoji" id="go-emoji">😢</div><div class="go-title" id="go-title">Игра окончена!</div><div class="go-score" id="go-score">0</div><div class="go-record" id="go-record">Рекорд: 0</div><div class="go-buttons"><button class="go-btn go-btn-retry" id="go-retry">🔄 Ещё раз</button><button class="go-btn go-btn-menu" id="go-menu">🏠 В меню</button></div></div></div>
+            <div id="gameover-overlay"><div class="go-card"><div class="go-emoji" id="go-emoji">😢</div><div class="go-title" id="go-title">Игра окончена!</div><div class="go-score" id="go-score">0</div><div class="go-record" id="go-record">Рекорд: 0</div><div id="go-name-input" style="display:flex; flex-direction:column; gap:8px; align-items:center; margin:12px 0;">
+                <input type="text" id="player-name" placeholder="Введи ник (макс 20 символов)" maxlength="20" style="width:85%; padding:12px 16px; border-radius:25px; border:2px solid rgba(255,255,255,0.3); background:#2a2a45; color:#fff; text-align:center; font-size:16px; outline:none;">
+                <button id="go-submit-score" style="background:linear-gradient(135deg, #f39c12, #e67e22); color:#fff; border:none; padding:12px 24px; border-radius:50px; font-size:15px; font-weight:700; cursor:pointer; width:85%;">📤 Отправить в лидерборд</button>
+                <p id="go-submit-status" style="font-size:13px; color:#aaa; margin-top:2px; min-height:18px;"></p>
+              </div><div class="go-buttons"><button class="go-btn go-btn-retry" id="go-retry">🔄 Ещё раз</button><button class="go-btn go-btn-menu" id="go-menu">🏠 В меню</button></div></div></div>
         </div>
         <div id="collection-screen" class="screen">
             <h2>📚 Коллекция еды</h2>
@@ -475,6 +480,15 @@
             <div id="collection-detail"><div class="detail-emoji" id="detail-emoji"></div><div class="detail-name" id="detail-name"></div><div class="detail-type" id="detail-type"></div><div class="detail-info" id="detail-info"></div><button class="btn-back" id="btn-detail-back">← Назад к коллекции</button></div>
             <button class="btn-back" id="btn-collection-back" style="margin-top:6px;">← В главное меню</button>
         </div>
+        <div id="leaderboard-overlay" style="position:absolute; inset:0; z-index:60; background:rgba(0,0,0,0.85); backdrop-filter:blur(12px); display:flex; align-items:center; justify-content:center; pointer-events:none; opacity:0; transition:opacity 0.3s;">
+            <div style="background:#1e1e35; border-radius:24px; padding:24px; width:90%; max-width:380px; text-align:center; box-shadow:0 20px 50px rgba(0,0,0,0.7); border:1px solid rgba(255,255,255,0.15);">
+              <h3 style="color:#fff; margin-bottom:16px; font-size:22px;">🏆 Мировой топ</h3>
+              <div id="leaderboard-list" style="max-height:320px; overflow-y:auto; color:#ccd; font-size:15px; text-align:left; margin-bottom:16px;">
+                <p style="text-align:center; color:#889;">Загрузка...</p>
+              </div>
+              <button id="btn-leaderboard-close" style="background:rgba(255,255,255,0.1); border:2px solid rgba(255,255,255,0.2); color:#fff; padding:12px 28px; border-radius:50px; font-size:15px; font-weight:700; cursor:pointer;">← Закрыть</button>
+            </div>
+          </div>
     </div>
     <script>
         (function() {
@@ -584,6 +598,78 @@
             };
 
             const MAX_GLOWS = 2;
+
+            // === ЛИДЕРБОРД ФУНКЦИИ ===
+
+            // Простейшая защита от XSS
+            function escapeHTML(str) {
+            const div = document.createElement('div');
+            div.appendChild(document.createTextNode(str));
+            return div.innerHTML;
+            }
+
+            // Загрузка таблицы лидеров
+            async function loadLeaderboard() {
+            try {
+                const res = await fetch('/api/leaderboard');
+                if (!res.ok) return [];
+                return await res.json();
+            } catch (e) {
+                console.error('Leaderboard load error:', e);
+                return [];
+            }
+            }
+
+            // Показать окно лидерборда
+            async function showLeaderboardOverlay() {
+            const overlay = document.getElementById('leaderboard-overlay');
+            const listEl = document.getElementById('leaderboard-list');
+            
+            overlay.style.opacity = '1';
+            overlay.style.pointerEvents = 'all';
+            listEl.innerHTML = '<p style="text-align:center; color:#889;">Загрузка...</p>';
+            
+            const top = await loadLeaderboard();
+            
+            if (!top || top.length === 0) {
+                listEl.innerHTML = '<p style="text-align:center; color:#889; padding:20px;">Пока никого нет.<br>Стань первым! 🏆</p>';
+            } else {
+                listEl.innerHTML = top.map((entry, i) => {
+                const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
+                const bg = i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent';
+                return `
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:${bg}; border-radius:10px; margin-bottom:4px;">
+                    <span style="font-weight:600;">${medal} ${escapeHTML(entry.name)}</span>
+                    <span style="font-weight:800; color:#f1c40f; font-size:16px;">⭐ ${entry.score}</span>
+                    </div>`;
+                }).join('');
+            }
+            }
+
+            // Скрыть лидерборд
+            function hideLeaderboardOverlay() {
+            const overlay = document.getElementById('leaderboard-overlay');
+            overlay.style.opacity = '0';
+            overlay.style.pointerEvents = 'none';
+            }
+
+            // Отправка счёта
+            async function submitScore(name, score) {
+            try {
+                const res = await fetch('/api/leaderboard', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, score })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                return { ok: false, error: data.error || 'Ошибка' };
+                }
+                return { ok: true, position: data.position };
+            } catch (e) {
+                return { ok: false, error: 'Ошибка соединения' };
+            }
+            }
 
             function loadStorage() {
                 try {
@@ -756,6 +842,18 @@
                 goRecord.classList.toggle('new-record', isRecord);
                 $('#go-emoji').textContent = isRecord ? '🏆' : '😢';
                 gameoverOverlay.classList.add('visible');
+                // В функции endGame(), после gameoverOverlay.classList.add('visible');
+                document.getElementById('player-name').value = '';
+                document.getElementById('go-submit-status').textContent = '';
+                document.getElementById('go-submit-status').style.color = '#aaa';
+                const nameInput = document.getElementById('player-name');
+                const submitBtn = document.getElementById('go-submit-score');
+                if (nameInput) nameInput.style.display = 'block';
+                if (submitBtn) {
+                submitBtn.style.display = 'block';
+                submitBtn.disabled = false;
+                submitBtn.textContent = '📤 Отправить в лидерборд';
+                }
             }
 
             let lastTime = 0;
@@ -1148,7 +1246,48 @@
                 showScreen('menu');
                 requestAnimationFrame(gameLoop); }
             document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', init) : init();
+
+            // === ЛИДЕРБОРД ОБРАБОТЧИКИ ===
+
+            // Кнопка лидерборда в меню
+            document.getElementById('btn-leaderboard').addEventListener('click', showLeaderboardOverlay);
+
+            // Закрыть лидерборд
+            document.getElementById('btn-leaderboard-close').addEventListener('click', hideLeaderboardOverlay);
+
+            // Отправка счёта после игры
+            document.getElementById('go-submit-score').addEventListener('click', async function() {
+            const nameInput = document.getElementById('player-name');
+            const statusP = document.getElementById('go-submit-status');
+            const btn = this;
+            
+            const name = nameInput.value.trim();
+            if (!name) {
+                statusP.textContent = '⚠️ Введи никнейм!';
+                statusP.style.color = '#e74c3c';
+                return;
+            }
+            
+            btn.disabled = true;
+            btn.textContent = '⏳ Отправка...';
+            statusP.textContent = '';
+            
+            const result = await submitScore(name, state.score);
+            
+            if (result.ok) {
+                statusP.textContent = `✅ Ты на ${result.position} месте в мире!`;
+                statusP.style.color = '#2ecc71';
+                nameInput.style.display = 'none';
+                btn.style.display = 'none';
+            } else {
+                statusP.textContent = '❌ ' + (result.error || 'Ошибка сервера');
+                statusP.style.color = '#e74c3c';
+                btn.disabled = false;
+                btn.textContent = '📤 Отправить в лидерборд';
+            }
+            });
         })();
+        
     </script>
 </body>
 </html>
