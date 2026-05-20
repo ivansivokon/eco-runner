@@ -73,19 +73,10 @@
             animation: logoBounce 2.2s ease-in-out infinite;
         }
         @keyframes logoBounce {
-            0%,
-            100% {
-                transform: translateY(0);
-            }
-            25% {
-                transform: translateY(-18px);
-            }
-            50% {
-                transform: translateY(0);
-            }
-            70% {
-                transform: translateY(-8px);
-            }
+            0%, 100% { transform: translateY(0); }
+            25% { transform: translateY(-18px); }
+            50% { transform: translateY(0); }
+            70% { transform: translateY(-8px); }
         }
         #menu-screen h1 {
             font-size: 30px;
@@ -478,6 +469,18 @@
             max-width: 360px;
             text-align: center;
             border: 1px solid rgba(255,255,255,0.15);
+            position: relative;
+        }
+        .auth-close-btn {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 32px;
+            height: 32px;
+            cursor: pointer;
+            background: none;
+            border: none;
+            padding: 0;
         }
         .auth-tabs {
             display: flex;
@@ -527,21 +530,40 @@
             margin-top: 8px;
             min-height: 20px;
         }
-        .profile-card {
-            background: #1e1e35;
-            border-radius: 24px;
-            padding: 24px;
-            width: 90%;
-            max-width: 360px;
-            text-align: center;
-            border: 1px solid rgba(255,255,255,0.15);
+        .avatar-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin: 10px 0;
         }
-        .profile-card h3 {
+        .avatar-option {
+            font-size: 28px;
+            padding: 6px;
+            border-radius: 12px;
+            background: rgba(255,255,255,0.05);
+            cursor: pointer;
+            border: 2px solid transparent;
+            transition: 0.2s;
+        }
+        .avatar-option.selected {
+            border-color: #f39c12;
+            background: rgba(255,255,255,0.15);
+        }
+        .profile-info {
+            margin: 16px 0;
+        }
+        .profile-avatar {
+            font-size: 48px;
+        }
+        .profile-name {
+            font-size: 20px;
+            font-weight: 800;
             color: #fff;
-            margin-bottom: 12px;
         }
-        .profile-card button {
-            margin-top: 12px;
+        .profile-record {
+            font-size: 14px;
+            color: #aab;
         }
         #leaderboard-overlay {
             position: absolute;
@@ -623,17 +645,32 @@
         </div>
         <div id="auth-overlay">
             <div class="auth-card" id="auth-card">
-                <div class="auth-tabs">
+                <button class="auth-close-btn" id="auth-close-btn">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+                <div class="auth-tabs" id="auth-tabs">
                     <button class="auth-tab active" id="tab-login">Вход</button>
                     <button class="auth-tab" id="tab-register">Регистрация</button>
                 </div>
-                <input type="text" id="auth-name" class="auth-input" placeholder="Никнейм" maxlength="20">
-                <input type="password" id="auth-password" class="auth-input" placeholder="Пароль">
-                <input type="password" id="auth-password2" class="auth-input" placeholder="Повторите пароль" style="display:none;">
-                <button id="auth-submit" class="auth-btn">Войти</button>
+                <div id="auth-form">
+                    <input type="text" id="auth-name" class="auth-input" placeholder="Никнейм" maxlength="20">
+                    <input type="password" id="auth-password" class="auth-input" placeholder="Пароль">
+                    <input type="password" id="auth-password2" class="auth-input" placeholder="Повторите пароль" style="display:none;">
+                    <div id="avatar-selection" style="display:none;">
+                        <p style="color:#ccd; font-size:14px; margin:8px 0 4px;">Выбери аватар:</p>
+                        <div id="avatar-grid" class="avatar-grid"></div>
+                    </div>
+                    <button id="auth-submit" class="auth-btn">Войти</button>
+                </div>
+                <div id="auth-profile" style="display:none;">
+                    <div class="profile-info">
+                        <div class="profile-avatar" id="profile-avatar"></div>
+                        <div class="profile-name" id="profile-name"></div>
+                        <div class="profile-record" id="profile-record"></div>
+                    </div>
+                    <button id="auth-logout-btn" class="auth-btn" style="background:rgba(255,255,255,0.1); border:2px solid rgba(255,255,255,0.2);">Выйти</button>
+                </div>
                 <div id="auth-error" class="auth-error"></div>
-                <button id="auth-close" style="background:rgba(255,255,255,0.1); border:2px solid rgba(255,255,255,0.2); color:#fff; padding:10px 22px; border-radius:50px; margin-top:8px; cursor:pointer; width:100%;">Закрыть</button>
-                <button id="auth-logout" style="display:none; background:rgba(255,255,255,0.1); border:2px solid rgba(255,255,255,0.2); color:#fff; padding:10px 22px; border-radius:50px; margin-top:8px; cursor:pointer; width:100%;">Выйти</button>
             </div>
         </div>
     </div>
@@ -689,6 +726,7 @@
                 { id: 'cheese', name: 'Сыр', emoji: '🧀', type: 'harmful' },
                 { id: 'chocolate', name: 'Шоколад', emoji: '🍫', type: 'harmful' }
             ];
+            const AVATARS = FOOD_DATA.filter(f => f.type === 'healthy').map(f => f.emoji);
             const $ = s => document.querySelector(s);
             const app = $('#app');
             const menuScreen = $('#menu-screen');
@@ -742,7 +780,10 @@
                 playerProgress: 0.8,
                 speedIncrementAcc: 0,
                 markerSpawnTimer: 0,
-                currentUser: null
+                currentUser: null,
+                currentUserAvatar: '🏃',
+                currentUserRecord: 0,
+                selectedAvatar: AVATARS[0]
             };
 
             const MAX_GLOWS = 2;
@@ -757,12 +798,12 @@
             }
 
             // ====== Аккаунт API ======
-            async function apiRegister(name, password) {
+            async function apiRegister(name, password, avatar) {
                 const passwordHash = await hashPassword(password);
                 const res = await fetch('/api/account/register', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, passwordHash })
+                    body: JSON.stringify({ name, passwordHash, avatar })
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Ошибка регистрации');
@@ -787,11 +828,11 @@
                 if (!res.ok) return { top: [], position: 0 };
                 return await res.json();
             }
-            async function submitScore(name, score) {
+            async function submitScore(name, score, avatar) {
                 const res = await fetch('/api/leaderboard', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, score })
+                    body: JSON.stringify({ name, score, avatar })
                 });
                 const data = await res.json();
                 if (!res.ok) throw new Error(data.error || 'Ошибка');
@@ -802,6 +843,31 @@
                 const div = document.createElement('div');
                 div.appendChild(document.createTextNode(str));
                 return div.innerHTML;
+            }
+
+            function loadUser() {
+                const savedUser = localStorage.getItem('ecoUser');
+                const savedAvatar = localStorage.getItem('ecoAvatar');
+                if (savedUser) {
+                    state.currentUser = savedUser;
+                    state.currentUserAvatar = savedAvatar || '🏃';
+                }
+                updateAccountButton();
+            }
+
+            function saveUserData() {
+                if (state.currentUser) {
+                    localStorage.setItem('ecoUser', state.currentUser);
+                    localStorage.setItem('ecoAvatar', state.currentUserAvatar);
+                } else {
+                    localStorage.removeItem('ecoUser');
+                    localStorage.removeItem('ecoAvatar');
+                }
+            }
+
+            function updateAccountButton() {
+                const btn = document.getElementById('btn-account');
+                btn.textContent = state.currentUser ? `👤 ${state.currentUser}` : '👤 Аккаунт';
             }
 
             // ====== UI функции ======
@@ -822,7 +888,7 @@
                         const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
                         const bg = i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent';
                         return `<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:${bg}; border-radius:10px; margin-bottom:4px;">
-                            <span style="font-weight:600;">${medal} ${escapeHTML(entry.name)}</span>
+                            <span style="font-weight:600;">${medal} ${escapeHTML(entry.avatar||'🏃')} ${escapeHTML(entry.name)}</span>
                             <span style="font-weight:800; color:#f1c40f;">⭐ ${entry.score}</span>
                         </div>`;
                     }).join('');
@@ -838,101 +904,106 @@
 
             // ====== Окно авторизации ======
             function showAuthOverlay() {
-                const authOverlay = document.getElementById('auth-overlay');
-                const authCard = document.getElementById('auth-card');
-                const tabs = authCard.querySelector('.auth-tabs');
-                const nameInput = document.getElementById('auth-name');
-                const passInput = document.getElementById('auth-password');
-                const pass2Input = document.getElementById('auth-password2');
-                const submitBtn = document.getElementById('auth-submit');
-                const closeBtn = document.getElementById('auth-close');
-                const logoutBtn = document.getElementById('auth-logout');
-                const errorEl = document.getElementById('auth-error');
+                const overlay = document.getElementById('auth-overlay');
+                const form = document.getElementById('auth-form');
+                const profile = document.getElementById('auth-profile');
+                const tabs = document.getElementById('auth-tabs');
+                const avatarSelection = document.getElementById('avatar-selection');
+                overlay.classList.add('visible');
 
                 if (state.currentUser) {
+                    form.style.display = 'none';
+                    profile.style.display = 'block';
                     tabs.style.display = 'none';
-                    nameInput.style.display = 'none';
-                    passInput.style.display = 'none';
-                    pass2Input.style.display = 'none';
-                    submitBtn.style.display = 'none';
-                    closeBtn.style.display = 'none';
-                    logoutBtn.style.display = 'block';
-                    errorEl.textContent = `Вы вошли как ${state.currentUser}`;
+                    document.getElementById('profile-avatar').textContent = state.currentUserAvatar;
+                    document.getElementById('profile-name').textContent = state.currentUser;
+                    document.getElementById('profile-record').textContent = `Рекорд: ${state.currentUserRecord || state.record}`;
                 } else {
+                    form.style.display = 'block';
+                    profile.style.display = 'none';
                     tabs.style.display = 'flex';
-                    nameInput.style.display = 'block';
-                    passInput.style.display = 'block';
-                    pass2Input.style.display = 'none';
-                    submitBtn.style.display = 'block';
-                    closeBtn.style.display = 'block';
-                    logoutBtn.style.display = 'none';
-                    errorEl.textContent = '';
+                    document.getElementById('auth-error').textContent = '';
                     setAuthTab('login');
                 }
-                authOverlay.classList.add('visible');
+                renderAvatarGrid();
             }
             function hideAuthOverlay() {
                 document.getElementById('auth-overlay').classList.remove('visible');
             }
             function setAuthTab(tab) {
-                const tabs = document.querySelectorAll('.auth-tab');
-                tabs.forEach(t => t.classList.remove('active'));
-                document.getElementById(`tab-${tab}`).classList.add('active');
+                const tabLogin = document.getElementById('tab-login');
+                const tabRegister = document.getElementById('tab-register');
+                tabLogin.classList.toggle('active', tab === 'login');
+                tabRegister.classList.toggle('active', tab === 'register');
                 const isRegister = tab === 'register';
                 document.getElementById('auth-password2').style.display = isRegister ? 'block' : 'none';
+                document.getElementById('avatar-selection').style.display = isRegister ? 'block' : 'none';
                 document.getElementById('auth-submit').textContent = isRegister ? 'Зарегистрироваться' : 'Войти';
             }
+            function renderAvatarGrid() {
+                const grid = document.getElementById('avatar-grid');
+                grid.innerHTML = '';
+                AVATARS.forEach(emoji => {
+                    const div = document.createElement('div');
+                    div.className = 'avatar-option' + (emoji === state.selectedAvatar ? ' selected' : '');
+                    div.textContent = emoji;
+                    div.addEventListener('click', () => {
+                        state.selectedAvatar = emoji;
+                        renderAvatarGrid();
+                    });
+                    grid.appendChild(div);
+                });
+            }
 
-            // ====== Обработчики авторизации ======
             document.getElementById('tab-login').addEventListener('click', () => setAuthTab('login'));
             document.getElementById('tab-register').addEventListener('click', () => setAuthTab('register'));
-            document.getElementById('auth-close').addEventListener('click', hideAuthOverlay);
-            document.getElementById('auth-logout').addEventListener('click', () => {
-                state.currentUser = null;
-                localStorage.removeItem('ecoUser');
-                hideAuthOverlay();
-                updateAccountButton();
-            });
+            document.getElementById('auth-close-btn').addEventListener('click', hideAuthOverlay);
 
             document.getElementById('auth-submit').addEventListener('click', async () => {
-                const tab = document.querySelector('.auth-tab.active').id.split('-')[1];
+                const tab = document.querySelector('.auth-tab.active')?.id.split('-')[1];
                 const name = document.getElementById('auth-name').value.trim();
                 const password = document.getElementById('auth-password').value;
                 const password2 = document.getElementById('auth-password2').value;
                 const errorEl = document.getElementById('auth-error');
                 errorEl.textContent = '';
-
                 if (!name) return errorEl.textContent = 'Введи ник';
                 if (!password) return errorEl.textContent = 'Введи пароль';
                 if (tab === 'register' && password !== password2) return errorEl.textContent = 'Пароли не совпадают';
 
                 try {
                     if (tab === 'register') {
-                        await apiRegister(name, password);
+                        await apiRegister(name, password, state.selectedAvatar);
                         errorEl.textContent = 'Регистрация успешна! Теперь войдите.';
                         setAuthTab('login');
+                        document.getElementById('auth-password').value = '';
+                        document.getElementById('auth-password2').value = '';
                     } else {
-                        await apiLogin(name, password);
+                        const data = await apiLogin(name, password);
                         state.currentUser = name;
-                        localStorage.setItem('ecoUser', name);
-                        hideAuthOverlay();
+                        state.currentUserAvatar = data.avatar || '🏃';
+                        state.currentUserRecord = data.record || 0;
+                        if (data.record > state.record) {
+                            state.record = data.record;
+                            saveStorage();
+                            updateMenuStats();
+                        }
+                        saveUserData();
                         updateAccountButton();
+                        hideAuthOverlay();
                     }
                 } catch (e) {
                     errorEl.textContent = e.message;
                 }
             });
 
-            function updateAccountButton() {
-                const btn = document.getElementById('btn-account');
-                btn.textContent = state.currentUser ? `👤 ${state.currentUser}` : '👤 Аккаунт';
-            }
-
-            function loadUser() {
-                const saved = localStorage.getItem('ecoUser');
-                if (saved) state.currentUser = saved;
+            document.getElementById('auth-logout-btn').addEventListener('click', () => {
+                state.currentUser = null;
+                state.currentUserAvatar = '🏃';
+                state.currentUserRecord = 0;
+                saveUserData();
                 updateAccountButton();
-            }
+                hideAuthOverlay();
+            });
 
             // ====== Старые функции хранилища ======
             function loadStorage() {
@@ -948,7 +1019,6 @@
                     state.discoveredFoods = {};
                 }
             }
-
             function saveStorage() {
                 try {
                     localStorage.setItem('foodRun_record', state.record);
@@ -956,7 +1026,6 @@
                     localStorage.setItem('foodRun_collection', JSON.stringify(state.discoveredFoods));
                 } catch (e) {}
             }
-
             function updateMenuStats() {
                 recordVal.textContent = state.record;
                 lastVal.textContent = state.lastScore !== null ? state.lastScore : '—';
@@ -1113,10 +1182,11 @@
                 registerBtn.style.display = 'none';
 
                 if (isRecord && state.currentUser) {
-                    submitScore(state.currentUser, state.score)
+                    submitScore(state.currentUser, state.score, state.currentUserAvatar)
                         .then(result => {
                             statusEl.textContent = `✅ Ты на ${result.position} месте в мире!`;
                             statusEl.style.color = '#2ecc71';
+                            state.currentUserRecord = state.score;
                         })
                         .catch(err => {
                             statusEl.textContent = '⚠️ Ошибка отправки рекорда';
@@ -1129,8 +1199,8 @@
                 }
             }
 
-            // Игровой цикл
             let lastTime = 0;
+
             function update(dt) {
                 if (!state.gameRunning || state.gamePaused) return;
                 if (dt > 0.1) dt = 0.1;
@@ -1399,7 +1469,8 @@
 
             function render() {
                 ctx.clearRect(0, 0, state.canvasW, state.canvasH);
-                let sx = 0, sy = 0;
+                let sx = 0,
+                    sy = 0;
                 if (state.shakeTimer > 0) {
                     const i = state.shakeIntensity * (state.shakeTimer / 0.5);
                     sx = (Math.random() - 0.5) * i * 2;
@@ -1435,7 +1506,9 @@
                 }
             }
 
-            let touchStartX = 0, touchStartY = 0, touchActive = false;
+            let touchStartX = 0,
+                touchStartY = 0,
+                touchActive = false;
             canvas.addEventListener('touchstart', e => {
                 if (!state.gameRunning || state.gamePaused) return;
                 if (e.touches.length === 1) {
@@ -1471,46 +1544,63 @@
             });
             window.addEventListener('keydown', e => {
                 if (state.screen !== 'game' || !state.gameRunning || state.gamePaused) return;
-                if (e.key === 'ArrowLeft' || e.key === 'a') { e.preventDefault();
-                    moveLane(-1); } else if (e.key === 'ArrowRight' || e.key === 'd') { e.preventDefault();
-                    moveLane(1); }
+                if (e.key === 'ArrowLeft' || e.key === 'a') { e.preventDefault(); moveLane(-1); }
+                else if (e.key === 'ArrowRight' || e.key === 'd') { e.preventDefault(); moveLane(1); }
             });
 
-            $('#btn-play').addEventListener('click', () => { resizeCanvas();
+            $('#btn-play').addEventListener('click', () => {
+                resizeCanvas();
                 resetGame();
                 showScreen('game');
-                lastTime = performance.now(); });
-            $('#hud-pause-btn').addEventListener('click', () => { if (state.gameRunning && !state.gamePaused) { state
-                    .gamePaused = true;
-                pauseOverlay.classList.add('visible'); } });
-            $('#pause-resume').addEventListener('click', () => { state.gamePaused = false;
+                lastTime = performance.now();
+            });
+            $('#hud-pause-btn').addEventListener('click', () => {
+                if (state.gameRunning && !state.gamePaused) {
+                    state.gamePaused = true;
+                    pauseOverlay.classList.add('visible');
+                }
+            });
+            $('#pause-resume').addEventListener('click', () => {
+                state.gamePaused = false;
                 pauseOverlay.classList.remove('visible');
-                lastTime = performance.now(); });
-            $('#pause-quit').addEventListener('click', () => { state.gameRunning = false;
-                state.lastScore = state.score; if (state.score > state.record) state.record = state.score;
+                lastTime = performance.now();
+            });
+            $('#pause-quit').addEventListener('click', () => {
+                state.gameRunning = false;
+                state.lastScore = state.score;
+                if (state.score > state.record) state.record = state.score;
                 saveStorage();
                 updateMenuStats();
                 pauseOverlay.classList.remove('visible');
-                showScreen('menu'); });
-            $('#go-retry').addEventListener('click', () => { resizeCanvas();
+                showScreen('menu');
+            });
+            $('#go-retry').addEventListener('click', () => {
+                resizeCanvas();
                 resetGame();
                 showScreen('game');
-                lastTime = performance.now(); });
-            $('#go-menu').addEventListener('click', () => { state.gameRunning = false;
+                lastTime = performance.now();
+            });
+            $('#go-menu').addEventListener('click', () => {
+                state.gameRunning = false;
                 gameoverOverlay.classList.remove('visible');
-                showScreen('menu'); });
+                showScreen('menu');
+            });
             $('#go-register').addEventListener('click', () => {
                 gameoverOverlay.classList.remove('visible');
                 showAuthOverlay();
             });
             $('#btn-collection-menu').addEventListener('click', () => showScreen('collection'));
             $('#btn-collection-back').addEventListener('click', () => showScreen('menu'));
-            $('#btn-detail-back').addEventListener('click', () => { collectionDetail.style.display = 'none';
-                collectionGrid.style.display = 'grid'; });
+            $('#btn-detail-back').addEventListener('click', () => {
+                collectionDetail.style.display = 'none';
+                collectionGrid.style.display = 'grid';
+            });
 
-            window.addEventListener('resize', () => { resizeCanvas();
+            window.addEventListener('resize', () => {
+                resizeCanvas();
                 state.playerTargetX = state.canvasW / 2 + state.lane * state.laneWidthBottom;
-                state.playerX = state.playerTargetX; });
+                state.playerX = state.playerTargetX;
+            });
 
             // Лидерборд и аккаунт
             document.getElementById('btn-leaderboard').addEventListener('click', showLeaderboardOverlay);
