@@ -1,5 +1,9 @@
 <!DOCTYPE html>
 <html lang="ru">
+    <script
+  type="module"
+  src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js">
+</script>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover, maximum-scale=1.0, minimum-scale=1.0">
@@ -620,6 +624,23 @@
             </div>
         </div>
         <div id="game-screen" class="screen">
+            <model-viewer
+  id="player-3d"
+  src="models/player.glb"
+  autoplay
+  rotation-per-second="0deg 0deg 0deg"
+  camera-orbit="0deg 80deg 3m"
+  camera-target="0m 0.5m 0m"
+  style="
+    position: absolute;
+    width: 120px;
+    height: 120px;
+    transform-origin: center center;
+    display: none;
+    pointer-events: none;
+    z-index: 5;
+  ">
+</model-viewer>
             <canvas id="game-canvas"></canvas>
             <div id="game-hud">
                 <div class="hud-top-row"><span id="hud-time">⏱ 0s</span><span id="hud-score">⭐ 0</span></div>
@@ -735,6 +756,7 @@
                 { id: 'cheese', name: 'Сыр', emoji: '🧀', type: 'harmful' },
                 { id: 'chocolate', name: 'Шоколад', emoji: '🍫', type: 'harmful' }
             ];
+            const playerModel3D = document.getElementById('player-3d');
             const AVATARS = FOOD_DATA.filter(f => f.type === 'healthy').map(f => f.emoji);
             const $ = s => document.querySelector(s);
             const app = $('#app');
@@ -1063,6 +1085,11 @@
                     collectionDetail.style.display = 'none';
                     collectionGrid.style.display = 'grid';
                 }
+                if (name === 'game') {
+  // возможно, уже показали в resetGame
+} else {
+  playerModel3D.style.display = 'none';
+}
             }
 
             function renderCollection() {
@@ -1175,7 +1202,9 @@
                 state.playerTargetX = state.canvasW / 2;
                 state.playerX = state.playerTargetX;
                 state.lastTimerValue = 0;
+                playerModel3D.style.display = 'block';
                 updateHUD();
+                
                 gameoverOverlay.classList.remove('visible');
                 pauseOverlay.classList.remove('visible');
             }
@@ -1196,7 +1225,7 @@
                 goRecord.classList.toggle('new-record', isRecord);
                 $('#go-emoji').textContent = isRecord ? '🏆' : '😢';
                 gameoverOverlay.classList.add('visible');
-
+                playerModel3D.style.display = 'none';
                 const statusEl = document.getElementById('go-auto-submit-status');
                 const registerBtn = document.getElementById('go-register');
                 statusEl.textContent = '';
@@ -1501,7 +1530,24 @@
                 ctx.translate(sx, sy);
                 drawRoad();
                 drawFoodItems();
-                drawPlayer();
+                // drawPlayer();
+                // --- синхронизация 3D-модели ---
+                if (state.gameRunning) {
+                const scale = scaleAt(state.playerProgress);  // текущая перспектива
+                const py = roadYAt(state.playerProgress);     // Y игрока на экране
+                const px = state.playerX;
+
+                // Подбираем коэффициент так, чтобы размер модели был близок к старому эмодзи (58px * scale)
+                const sizeFactor = 0.55;   // 120px * 0.55 ≈ 66px → примерно как 58*scale при scale=1
+                const finalScale = scale * sizeFactor;
+
+                playerModel3D.style.transform = `
+                    translate(${px}px, ${py}px)
+                    scale(${finalScale})
+                    translate(-50%, -50%)
+                `;
+                }
+                // ---------------------------------
                 drawFog();
                 ctx.restore();
             }
