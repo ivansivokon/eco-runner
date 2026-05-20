@@ -1,3 +1,4 @@
+// api/leaderboard.js
 import { Redis } from '@upstash/redis';
 
 const redis = new Redis({
@@ -34,7 +35,6 @@ export default async function handler(req, res) {
         const idx = entries.findIndex(e => e.name === playerName);
         position = idx >= 0 ? idx + 1 : 0;
       }
-
       return res.status(200).json({ top, position });
     } catch (e) {
       return res.status(500).json({ error: 'Failed to fetch leaderboard' });
@@ -43,17 +43,31 @@ export default async function handler(req, res) {
 
   if (req.method === 'POST') {
     try {
-      const { name, score } = req.body;
+      const { name, score, avatar } = req.body;
       if (!name || !name.trim()) return res.status(400).json({ error: 'Имя обязательно' });
       if (typeof score !== 'number' || score < 0) return res.status(400).json({ error: 'Некорректный счёт' });
 
       const cleanName = name.trim().slice(0, 20);
-      const entry = {
+      const newEntry = {
         name: cleanName,
         score: Math.floor(score),
+        avatar: avatar || '🏃',
         date: new Date().toISOString()
       };
 
+      // Обновляем рекорд в аккаунте (если есть такой пользователь)
+      const userRaw = await redis.hget('accounts', cleanName);
+      if (userRaw) {
+        try {
+          const userData = JSON.parse(userRaw);
+          if (newEntry.score > (userData.record || 0)) {
+            userData.record = newEntry.score;
+            await redis.hset('accounts', { [cleanName]: JSON.stringify(userData) });
+          }
+        } catch {}
+      }
+
+      // Получаем текущий список лидерборда
       const raw = await redis.get(LEADERBOARD_KEY);
       let entries = [];
       if (typeof raw === 'string') {
@@ -62,14 +76,30 @@ export default async function handler(req, res) {
         entries = raw;
       }
 
-      entries.push(entry);
+      // Ищем существующую запись с таким именем
+      const existingIndex = entries.findIndex(e => e.name === cleanName);
+      if (existingIndex !== -1) {
+        // Если новый счёт выше – обновляем, иначе игнорируем
+        if (newEntry.score > entries[existingIndex].score) {
+          entries[existingIndex] = newEntry;
+        } else {
+          // Игрок уже в таблице с лучшим или таким же счётом – ничего не делаем
+          const position = existingIndex + 1;
+          return res.status(200).json({ success: true, position });
+        }
+      } else {
+        // Новой записи нет – добавляем
+        entries.push(newEntry);
+      }
+
+      // Сортируем по убыванию и обрезаем до MAX_ENTRIES
       entries.sort((a, b) => b.score - a.score);
       const trimmed = entries.slice(0, MAX_ENTRIES);
       await redis.set(LEADERBOARD_KEY, JSON.stringify(trimmed));
 
-      const idx = trimmed.findIndex(e => e.name === cleanName && e.score === entry.score);
+      // Позиция игрока
+      const idx = trimmed.findIndex(e => e.name === cleanName);
       const realPosition = idx === -1 ? trimmed.length : idx + 1;
-
       return res.status(200).json({ success: true, position: realPosition });
     } catch (e) {
       return res.status(500).json({ error: 'Ошибка сервера' });
