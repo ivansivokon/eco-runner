@@ -276,14 +276,8 @@
             animation: popIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
         }
         @keyframes popIn {
-            from {
-                transform: translateY(30px) scale(0.85);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0) scale(1);
-                opacity: 1;
-            }
+            from { transform: translateY(30px) scale(0.85); opacity: 0; }
+            to { transform: translateY(0) scale(1); opacity: 1; }
         }
         .pause-card h3,
         .go-title {
@@ -701,7 +695,7 @@
         let animationAction = null;
         let playerCanvas;
         let webGLSupported = false;
-        let modelBaseSize = 1; // базовый размер модели в единицах (вычисляется после загрузки)
+        let modelBaseSize = 1;
 
         // Данные игры
         const FOOD_DATA = [
@@ -879,6 +873,12 @@
             if (savedUser) {
                 state.currentUser = savedUser;
                 state.currentUserAvatar = savedAvatar || '🏃';
+                // Восстанавливаем сохранённый рекорд аккаунта (если есть)
+                const savedRecord = localStorage.getItem('ecoUserRecord');
+                if (savedRecord !== null) {
+                    state.record = parseInt(savedRecord) || 0;
+                    state.currentUserRecord = state.record;
+                }
             }
             updateAccountButton();
         }
@@ -887,9 +887,11 @@
             if (state.currentUser) {
                 localStorage.setItem('ecoUser', state.currentUser);
                 localStorage.setItem('ecoAvatar', state.currentUserAvatar);
+                localStorage.setItem('ecoUserRecord', state.currentUserRecord);
             } else {
                 localStorage.removeItem('ecoUser');
                 localStorage.removeItem('ecoAvatar');
+                localStorage.removeItem('ecoUserRecord');
             }
         }
 
@@ -986,6 +988,7 @@
         document.getElementById('tab-register').addEventListener('click', () => setAuthTab('register'));
         document.getElementById('auth-close-btn').addEventListener('click', hideAuthOverlay);
 
+        // ====== ИСПРАВЛЕННЫЙ ОБРАБОТЧИК АВТОРИЗАЦИИ ======
         document.getElementById('auth-submit').addEventListener('click', async () => {
             const tab = document.querySelector('.auth-tab.active')?.id.split('-')[1];
             const name = document.getElementById('auth-name').value.trim();
@@ -1000,20 +1003,25 @@
             try {
                 if (tab === 'register') {
                     await apiRegister(name, password, state.selectedAvatar);
-                    errorEl.textContent = 'Регистрация успешна! Теперь войдите.';
-                    setAuthTab('login');
-                    document.getElementById('auth-password').value = '';
-                    document.getElementById('auth-password2').value = '';
+                    // Автоматический вход после регистрации
+                    const data = await apiLogin(name, password);
+                    state.currentUser = name;
+                    state.currentUserAvatar = data.avatar || '🏃';
+                    state.currentUserRecord = data.record || 0;
+                    state.record = data.record || 0; // сброс рекорда на облачный
+                    saveStorage();
+                    updateMenuStats();
+                    saveUserData();
+                    updateAccountButton();
+                    hideAuthOverlay();
                 } else {
                     const data = await apiLogin(name, password);
                     state.currentUser = name;
                     state.currentUserAvatar = data.avatar || '🏃';
                     state.currentUserRecord = data.record || 0;
-                    if (data.record > state.record) {
-                        state.record = data.record;
-                        saveStorage();
-                        updateMenuStats();
-                    }
+                    state.record = data.record || 0; // всегда заменяем на облачный рекорд
+                    saveStorage();
+                    updateMenuStats();
                     saveUserData();
                     updateAccountButton();
                     hideAuthOverlay();
@@ -1024,17 +1032,24 @@
         });
 
         document.getElementById('auth-logout-btn').addEventListener('click', () => {
+            state.record = 0;
             state.currentUser = null;
             state.currentUserAvatar = '🏃';
             state.currentUserRecord = 0;
             saveUserData();
+            saveStorage();
+            updateMenuStats();
             updateAccountButton();
             hideAuthOverlay();
         });
 
+        // ====== Хранилище ======
         function loadStorage() {
             try {
-                state.record = parseInt(localStorage.getItem('foodRun_record')) || 0;
+                // Не загружаем record из localStorage, если пользователь авторизован – он уже загружен через loadUser()
+                if (!state.currentUser) {
+                    state.record = parseInt(localStorage.getItem('foodRun_record')) || 0;
+                }
                 const ls = localStorage.getItem('foodRun_lastScore');
                 state.lastScore = ls && ls !== 'null' ? parseInt(ls) : null;
                 const disc = localStorage.getItem('foodRun_collection');
@@ -1212,7 +1227,13 @@
         function endGame() {
             state.gameRunning = false;
             state.lastScore = state.score;
-            if (state.score > state.record) state.record = state.score;
+            if (state.score > state.record) {
+                state.record = state.score;
+                if (state.currentUser) {
+                    state.currentUserRecord = state.score;
+                    saveUserData();
+                }
+            }
             saveStorage();
             updateMenuStats();
             const isRecord = state.score > 0 && state.score >= state.record;
@@ -1236,6 +1257,7 @@
                         statusEl.textContent = `✅ Ты на ${result.position} месте в мире!`;
                         statusEl.style.color = '#2ecc71';
                         state.currentUserRecord = state.score;
+                        saveUserData();
                     })
                     .catch(err => {
                         statusEl.textContent = '⚠️ Ошибка отправки рекорда';
@@ -1448,7 +1470,6 @@
             }
         }
 
-        // Только тень для 3D-режима (без обводки и свечения)
         function drawPlayerShadowOnly() {
             const px = state.playerX;
             const py = roadYAt(state.playerProgress);
@@ -1462,7 +1483,6 @@
             ctx.fill();
         }
 
-        // Игрок в 2D (эмодзи) — запасной вариант
         function drawPlayer2D(drawPlayerEmoji) {
             const px = state.playerX;
             const py = roadYAt(state.playerProgress);
@@ -1498,7 +1518,6 @@
             if (drawPlayerEmoji === true) {
                 ctx.fillText('🏃', px, py);
             }
-            
         }
 
         function drawFog() {
@@ -1537,9 +1556,9 @@
             drawFoodItems();
             if (webGLSupported && playerModel) {
                 drawPlayerShadowOnly();
-                drawPlayer2D(false); // только тень, 3D модель сверху
+                drawPlayer2D(false);
             } else {
-                drawPlayer2D(true); // полный 2D игрок
+                drawPlayer2D(true);
             }
             drawFog();
             ctx.restore();
@@ -1559,11 +1578,14 @@
                 threeCamera = new THREE.OrthographicCamera(0, w, h, 0, 0.0001, 10000);
                 threeCamera.position.z = 100;
                 threeRenderer = new THREE.WebGLRenderer({
-                    canvas: playerCanvas,
-                    alpha: true,
-                    antialias: true,
-                    failIfMajorPerformanceCaveat: false
-                });
+    canvas: playerCanvas,
+    alpha: false,          // отключаем прозрачность (фон всё равно чёрный)
+    antialias: false,      // убираем сглаживание
+    powerPreference: "high-performance",
+    preserveDrawingBuffer: false,
+    depth: false,
+    stencil: false
+});
                 threeRenderer.setClearColor(0x000000, 0);
                 threeRenderer.setSize(w, h);
                 threeRenderer.setPixelRatio(1);
@@ -1594,7 +1616,6 @@
             loader.load('models/player.glb',
                 (gltf) => {
                     playerModel = gltf.scene;
-                    // Вычисляем размер модели для правильного масштабирования
                     const box = new THREE.Box3().setFromObject(playerModel);
                     const size = box.getSize(new THREE.Vector3());
                     modelBaseSize = Math.max(size.x, size.y, size.z);
@@ -1621,7 +1642,7 @@
             if (!webGLSupported || !playerModel || !threeRenderer) return;
             const screenX = state.playerX;
             const screenY = state.canvasH - roadYAt(state.playerProgress);
-            playerModel.position.set(screenX, screenY-20, 0);
+            playerModel.position.set(screenX, screenY - 20, 0);
             const desiredSize = 78 * scaleAt(state.playerProgress) * 0.9;
             const s = desiredSize / modelBaseSize;
             playerModel.scale.set(s, s, s);
@@ -1661,7 +1682,6 @@
             }
         }
 
-        // Управление
         let touchStartX = 0, touchStartY = 0, touchActive = false;
         canvas.addEventListener('touchstart', e => {
             if (!state.gameRunning || state.gamePaused) return;
@@ -1701,7 +1721,6 @@
             else if (e.key === 'ArrowRight' || e.key === 'd') { e.preventDefault(); moveLane(1); }
         });
 
-        // Кнопки
         $('#btn-play').addEventListener('click', () => {
             resizeCanvas();
             resetGame();
@@ -1762,11 +1781,10 @@
 
         function init() {
             loadStorage();
+            loadUser();  // загружает пользователя и его рекорд до вызова updateMenuStats
             updateMenuStats();
             resizeCanvas();
-            loadUser();
             showScreen('menu');
-            // 3D инициализируется лениво при первом входе в игру
             requestAnimationFrame(gameLoop);
         }
         document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', init) : init();
