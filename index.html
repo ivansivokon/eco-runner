@@ -133,6 +133,9 @@
         .btn-collection {
             background: linear-gradient(135deg, #3498db, #2980b9);
         }
+        .btn-account {
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+        }
         .btn-stats {
             background: rgba(255, 255, 255, 0.07);
             border: 2px solid rgba(255, 255, 255, 0.18);
@@ -269,7 +272,7 @@
             padding: 28px 22px;
             text-align: center;
             width: 85%;
-            max-width: 340px;
+            max-width: 360px;
             box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
             border: 1px solid rgba(255, 255, 255, 0.15);
             animation: popIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -308,6 +311,11 @@
             color: #ffe484;
             font-weight: 800;
         }
+        .go-auto-submit-status {
+            font-size: 14px;
+            margin: 10px 0;
+            min-height: 20px;
+        }
         .go-buttons {
             display: flex;
             gap: 10px;
@@ -334,6 +342,10 @@
         .go-btn-menu {
             background: rgba(255, 255, 255, 0.1);
             border: 2px solid rgba(255, 255, 255, 0.2);
+        }
+        .go-btn-register {
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+            margin-top: 8px;
         }
         #collection-screen {
             padding: 20px 14px;
@@ -440,6 +452,121 @@
             font-weight: 700;
             cursor: pointer;
         }
+        /* Auth overlay */
+        #auth-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 70;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        #auth-overlay.visible {
+            pointer-events: all;
+            opacity: 1;
+        }
+        .auth-card {
+            background: #1e1e35;
+            border-radius: 24px;
+            padding: 24px;
+            width: 90%;
+            max-width: 360px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+        .auth-tabs {
+            display: flex;
+            margin-bottom: 16px;
+        }
+        .auth-tab {
+            flex: 1;
+            padding: 10px;
+            background: transparent;
+            border: none;
+            color: #aaa;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+        }
+        .auth-tab.active {
+            color: #fff;
+            border-bottom-color: #f39c12;
+        }
+        .auth-input {
+            width: 100%;
+            padding: 12px 16px;
+            margin: 8px 0;
+            border-radius: 20px;
+            border: 2px solid rgba(255,255,255,0.2);
+            background: #2a2a45;
+            color: #fff;
+            font-size: 16px;
+            outline: none;
+        }
+        .auth-btn {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 50px;
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            background: linear-gradient(135deg, #f39c12, #e67e22);
+            color: #fff;
+            margin-top: 12px;
+        }
+        .auth-error {
+            color: #e74c3c;
+            font-size: 14px;
+            margin-top: 8px;
+            min-height: 20px;
+        }
+        .profile-card {
+            background: #1e1e35;
+            border-radius: 24px;
+            padding: 24px;
+            width: 90%;
+            max-width: 360px;
+            text-align: center;
+            border: 1px solid rgba(255,255,255,0.15);
+        }
+        .profile-card h3 {
+            color: #fff;
+            margin-bottom: 12px;
+        }
+        .profile-card button {
+            margin-top: 12px;
+        }
+        #leaderboard-overlay {
+            position: absolute;
+            inset: 0;
+            z-index: 60;
+            background: rgba(0,0,0,0.85);
+            backdrop-filter: blur(12px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        #leaderboard-overlay.visible {
+            pointer-events: all;
+            opacity: 1;
+        }
+        .player-position {
+            text-align: center;
+            color: #f1c40f;
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 12px;
+        }
     </style>
 </head>
 <body>
@@ -451,6 +578,7 @@
             <button class="btn btn-play" id="btn-play">▶ Играть</button>
             <button class="btn btn-collection" id="btn-collection-menu">📚 Коллекция еды</button>
             <button class="btn btn-collection" id="btn-leaderboard" style="background: linear-gradient(135deg, #f39c12, #e67e22);">🏅 Лидерборд</button>
+            <button class="btn btn-account" id="btn-account">👤 Аккаунт</button>
             <div class="stats-row">
                 <button class="btn btn-stats" id="btn-record">🏆 Рекорд: <span id="record-val">0</span></button>
                 <button class="btn btn-stats" id="btn-last">📋 Последняя: <span id="last-val">—</span></button>
@@ -468,11 +596,14 @@
             </div>
             <button id="hud-pause-btn">⏸</button>
             <div id="pause-overlay"><div class="pause-card"><h3>⏸ Пауза</h3><button class="go-btn go-btn-retry" id="pause-resume">▶ Продолжить</button><button class="go-btn go-btn-menu" id="pause-quit">🏠 В меню</button></div></div>
-            <div id="gameover-overlay"><div class="go-card"><div class="go-emoji" id="go-emoji">😢</div><div class="go-title" id="go-title">Игра окончена!</div><div class="go-score" id="go-score">0</div><div class="go-record" id="go-record">Рекорд: 0</div><div id="go-name-input" style="display:flex; flex-direction:column; gap:8px; align-items:center; margin:12px 0;">
-                <input type="text" id="player-name" placeholder="Введи ник (макс 20 символов)" maxlength="20" style="width:85%; padding:12px 16px; border-radius:25px; border:2px solid rgba(255,255,255,0.3); background:#2a2a45; color:#fff; text-align:center; font-size:16px; outline:none;">
-                <button id="go-submit-score" style="background:linear-gradient(135deg, #f39c12, #e67e22); color:#fff; border:none; padding:12px 24px; border-radius:50px; font-size:15px; font-weight:700; cursor:pointer; width:85%;">📤 Отправить в лидерборд</button>
-                <p id="go-submit-status" style="font-size:13px; color:#aaa; margin-top:2px; min-height:18px;"></p>
-              </div><div class="go-buttons"><button class="go-btn go-btn-retry" id="go-retry">🔄 Ещё раз</button><button class="go-btn go-btn-menu" id="go-menu">🏠 В меню</button></div></div></div>
+            <div id="gameover-overlay"><div class="go-card"><div class="go-emoji" id="go-emoji">😢</div><div class="go-title" id="go-title">Игра окончена!</div><div class="go-score" id="go-score">0</div><div class="go-record" id="go-record">Рекорд: 0</div>
+                <div id="go-auto-submit-status" class="go-auto-submit-status"></div>
+                <div class="go-buttons">
+                    <button class="go-btn go-btn-retry" id="go-retry">🔄 Ещё раз</button>
+                    <button class="go-btn go-btn-menu" id="go-menu">🏠 В меню</button>
+                    <button class="go-btn go-btn-register" id="go-register" style="display:none;">📝 Зарегистрироваться</button>
+                </div>
+            </div></div>
         </div>
         <div id="collection-screen" class="screen">
             <h2>📚 Коллекция еды</h2>
@@ -480,15 +611,31 @@
             <div id="collection-detail"><div class="detail-emoji" id="detail-emoji"></div><div class="detail-name" id="detail-name"></div><div class="detail-type" id="detail-type"></div><div class="detail-info" id="detail-info"></div><button class="btn-back" id="btn-detail-back">← Назад к коллекции</button></div>
             <button class="btn-back" id="btn-collection-back" style="margin-top:6px;">← В главное меню</button>
         </div>
-        <div id="leaderboard-overlay" style="position:absolute; inset:0; z-index:60; background:rgba(0,0,0,0.85); backdrop-filter:blur(12px); display:flex; align-items:center; justify-content:center; pointer-events:none; opacity:0; transition:opacity 0.3s;">
+        <div id="leaderboard-overlay">
             <div style="background:#1e1e35; border-radius:24px; padding:24px; width:90%; max-width:380px; text-align:center; box-shadow:0 20px 50px rgba(0,0,0,0.7); border:1px solid rgba(255,255,255,0.15);">
               <h3 style="color:#fff; margin-bottom:16px; font-size:22px;">🏆 Мировой топ</h3>
+              <div id="player-position" class="player-position"></div>
               <div id="leaderboard-list" style="max-height:320px; overflow-y:auto; color:#ccd; font-size:15px; text-align:left; margin-bottom:16px;">
                 <p style="text-align:center; color:#889;">Загрузка...</p>
               </div>
               <button id="btn-leaderboard-close" style="background:rgba(255,255,255,0.1); border:2px solid rgba(255,255,255,0.2); color:#fff; padding:12px 28px; border-radius:50px; font-size:15px; font-weight:700; cursor:pointer;">← Закрыть</button>
             </div>
-          </div>
+        </div>
+        <div id="auth-overlay">
+            <div class="auth-card" id="auth-card">
+                <div class="auth-tabs">
+                    <button class="auth-tab active" id="tab-login">Вход</button>
+                    <button class="auth-tab" id="tab-register">Регистрация</button>
+                </div>
+                <input type="text" id="auth-name" class="auth-input" placeholder="Никнейм" maxlength="20">
+                <input type="password" id="auth-password" class="auth-input" placeholder="Пароль">
+                <input type="password" id="auth-password2" class="auth-input" placeholder="Повторите пароль" style="display:none;">
+                <button id="auth-submit" class="auth-btn">Войти</button>
+                <div id="auth-error" class="auth-error"></div>
+                <button id="auth-close" style="background:rgba(255,255,255,0.1); border:2px solid rgba(255,255,255,0.2); color:#fff; padding:10px 22px; border-radius:50px; margin-top:8px; cursor:pointer; width:100%;">Закрыть</button>
+                <button id="auth-logout" style="display:none; background:rgba(255,255,255,0.1); border:2px solid rgba(255,255,255,0.2); color:#fff; padding:10px 22px; border-radius:50px; margin-top:8px; cursor:pointer; width:100%;">Выйти</button>
+            </div>
+        </div>
     </div>
     <script>
         (function() {
@@ -595,82 +742,199 @@
                 playerProgress: 0.8,
                 speedIncrementAcc: 0,
                 markerSpawnTimer: 0,
+                currentUser: null
             };
 
             const MAX_GLOWS = 2;
 
-            // === ЛИДЕРБОРД ФУНКЦИИ ===
-
-            // Простейшая защита от XSS
-            function escapeHTML(str) {
-            const div = document.createElement('div');
-            div.appendChild(document.createTextNode(str));
-            return div.innerHTML;
+            // ====== Хеширование пароля ======
+            async function hashPassword(password) {
+                const encoder = new TextEncoder();
+                const data = encoder.encode(password);
+                const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+                const hashArray = Array.from(new Uint8Array(hashBuffer));
+                return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
             }
 
-            // Загрузка таблицы лидеров
-            async function loadLeaderboard() {
-            try {
-                const res = await fetch('/api/leaderboard');
-                if (!res.ok) return [];
-                return await res.json();
-            } catch (e) {
-                console.error('Leaderboard load error:', e);
-                return [];
-            }
-            }
-
-            // Показать окно лидерборда
-            async function showLeaderboardOverlay() {
-            const overlay = document.getElementById('leaderboard-overlay');
-            const listEl = document.getElementById('leaderboard-list');
-            
-            overlay.style.opacity = '1';
-            overlay.style.pointerEvents = 'all';
-            listEl.innerHTML = '<p style="text-align:center; color:#889;">Загрузка...</p>';
-            
-            const top = await loadLeaderboard();
-            
-            if (!top || top.length === 0) {
-                listEl.innerHTML = '<p style="text-align:center; color:#889; padding:20px;">Пока никого нет.<br>Стань первым! 🏆</p>';
-            } else {
-                listEl.innerHTML = top.map((entry, i) => {
-                const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
-                const bg = i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent';
-                return `
-                    <div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:${bg}; border-radius:10px; margin-bottom:4px;">
-                    <span style="font-weight:600;">${medal} ${escapeHTML(entry.name)}</span>
-                    <span style="font-weight:800; color:#f1c40f; font-size:16px;">⭐ ${entry.score}</span>
-                    </div>`;
-                }).join('');
-            }
-            }
-
-            // Скрыть лидерборд
-            function hideLeaderboardOverlay() {
-            const overlay = document.getElementById('leaderboard-overlay');
-            overlay.style.opacity = '0';
-            overlay.style.pointerEvents = 'none';
-            }
-
-            // Отправка счёта
-            async function submitScore(name, score) {
-            try {
-                const res = await fetch('/api/leaderboard', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, score })
+            // ====== Аккаунт API ======
+            async function apiRegister(name, password) {
+                const passwordHash = await hashPassword(password);
+                const res = await fetch('/api/account/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, passwordHash })
                 });
                 const data = await res.json();
-                if (!res.ok) {
-                return { ok: false, error: data.error || 'Ошибка' };
-                }
-                return { ok: true, position: data.position };
-            } catch (e) {
-                return { ok: false, error: 'Ошибка соединения' };
+                if (!res.ok) throw new Error(data.error || 'Ошибка регистрации');
+                return data;
             }
+            async function apiLogin(name, password) {
+                const passwordHash = await hashPassword(password);
+                const res = await fetch('/api/account/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, passwordHash })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Ошибка входа');
+                return data;
             }
 
+            // ====== Лидерборд с позицией ======
+            async function loadLeaderboard(playerName = '') {
+                const params = playerName ? `?name=${encodeURIComponent(playerName)}` : '';
+                const res = await fetch(`/api/leaderboard${params}`);
+                if (!res.ok) return { top: [], position: 0 };
+                return await res.json();
+            }
+            async function submitScore(name, score) {
+                const res = await fetch('/api/leaderboard', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, score })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Ошибка');
+                return data;
+            }
+
+            function escapeHTML(str) {
+                const div = document.createElement('div');
+                div.appendChild(document.createTextNode(str));
+                return div.innerHTML;
+            }
+
+            // ====== UI функции ======
+            async function showLeaderboardOverlay() {
+                const overlay = document.getElementById('leaderboard-overlay');
+                const listEl = document.getElementById('leaderboard-list');
+                const posEl = document.getElementById('player-position');
+                overlay.style.opacity = '1';
+                overlay.style.pointerEvents = 'all';
+                listEl.innerHTML = '<p style="text-align:center; color:#889;">Загрузка...</p>';
+                posEl.textContent = '';
+
+                const { top, position } = await loadLeaderboard(state.currentUser || '');
+                if (!top || top.length === 0) {
+                    listEl.innerHTML = '<p style="text-align:center; color:#889;">Пока никого нет. Стань первым!</p>';
+                } else {
+                    listEl.innerHTML = top.map((entry, i) => {
+                        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
+                        const bg = i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent';
+                        return `<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:${bg}; border-radius:10px; margin-bottom:4px;">
+                            <span style="font-weight:600;">${medal} ${escapeHTML(entry.name)}</span>
+                            <span style="font-weight:800; color:#f1c40f;">⭐ ${entry.score}</span>
+                        </div>`;
+                    }).join('');
+                }
+                if (state.currentUser) {
+                    posEl.textContent = position > 0 ? `Твоя позиция: ${position} место` : 'Тебя пока нет в топе';
+                }
+            }
+            function hideLeaderboardOverlay() {
+                document.getElementById('leaderboard-overlay').style.opacity = '0';
+                document.getElementById('leaderboard-overlay').style.pointerEvents = 'none';
+            }
+
+            // ====== Окно авторизации ======
+            function showAuthOverlay() {
+                const authOverlay = document.getElementById('auth-overlay');
+                const authCard = document.getElementById('auth-card');
+                const tabs = authCard.querySelector('.auth-tabs');
+                const nameInput = document.getElementById('auth-name');
+                const passInput = document.getElementById('auth-password');
+                const pass2Input = document.getElementById('auth-password2');
+                const submitBtn = document.getElementById('auth-submit');
+                const closeBtn = document.getElementById('auth-close');
+                const logoutBtn = document.getElementById('auth-logout');
+                const errorEl = document.getElementById('auth-error');
+
+                if (state.currentUser) {
+                    tabs.style.display = 'none';
+                    nameInput.style.display = 'none';
+                    passInput.style.display = 'none';
+                    pass2Input.style.display = 'none';
+                    submitBtn.style.display = 'none';
+                    closeBtn.style.display = 'none';
+                    logoutBtn.style.display = 'block';
+                    errorEl.textContent = `Вы вошли как ${state.currentUser}`;
+                } else {
+                    tabs.style.display = 'flex';
+                    nameInput.style.display = 'block';
+                    passInput.style.display = 'block';
+                    pass2Input.style.display = 'none';
+                    submitBtn.style.display = 'block';
+                    closeBtn.style.display = 'block';
+                    logoutBtn.style.display = 'none';
+                    errorEl.textContent = '';
+                    setAuthTab('login');
+                }
+                authOverlay.classList.add('visible');
+            }
+            function hideAuthOverlay() {
+                document.getElementById('auth-overlay').classList.remove('visible');
+            }
+            function setAuthTab(tab) {
+                const tabs = document.querySelectorAll('.auth-tab');
+                tabs.forEach(t => t.classList.remove('active'));
+                document.getElementById(`tab-${tab}`).classList.add('active');
+                const isRegister = tab === 'register';
+                document.getElementById('auth-password2').style.display = isRegister ? 'block' : 'none';
+                document.getElementById('auth-submit').textContent = isRegister ? 'Зарегистрироваться' : 'Войти';
+            }
+
+            // ====== Обработчики авторизации ======
+            document.getElementById('tab-login').addEventListener('click', () => setAuthTab('login'));
+            document.getElementById('tab-register').addEventListener('click', () => setAuthTab('register'));
+            document.getElementById('auth-close').addEventListener('click', hideAuthOverlay);
+            document.getElementById('auth-logout').addEventListener('click', () => {
+                state.currentUser = null;
+                localStorage.removeItem('ecoUser');
+                hideAuthOverlay();
+                updateAccountButton();
+            });
+
+            document.getElementById('auth-submit').addEventListener('click', async () => {
+                const tab = document.querySelector('.auth-tab.active').id.split('-')[1];
+                const name = document.getElementById('auth-name').value.trim();
+                const password = document.getElementById('auth-password').value;
+                const password2 = document.getElementById('auth-password2').value;
+                const errorEl = document.getElementById('auth-error');
+                errorEl.textContent = '';
+
+                if (!name) return errorEl.textContent = 'Введи ник';
+                if (!password) return errorEl.textContent = 'Введи пароль';
+                if (tab === 'register' && password !== password2) return errorEl.textContent = 'Пароли не совпадают';
+
+                try {
+                    if (tab === 'register') {
+                        await apiRegister(name, password);
+                        errorEl.textContent = 'Регистрация успешна! Теперь войдите.';
+                        setAuthTab('login');
+                    } else {
+                        await apiLogin(name, password);
+                        state.currentUser = name;
+                        localStorage.setItem('ecoUser', name);
+                        hideAuthOverlay();
+                        updateAccountButton();
+                    }
+                } catch (e) {
+                    errorEl.textContent = e.message;
+                }
+            });
+
+            function updateAccountButton() {
+                const btn = document.getElementById('btn-account');
+                btn.textContent = state.currentUser ? `👤 ${state.currentUser}` : '👤 Аккаунт';
+            }
+
+            function loadUser() {
+                const saved = localStorage.getItem('ecoUser');
+                if (saved) state.currentUser = saved;
+                updateAccountButton();
+            }
+
+            // ====== Старые функции хранилища ======
             function loadStorage() {
                 try {
                     state.record = parseInt(localStorage.getItem('foodRun_record')) || 0;
@@ -764,7 +1028,7 @@
                 ctx.setTransform(1, 0, 0, 1, 0, 0);
                 ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
                 state.roadTopY = h * 0.26;
-                state.roadBottomY = h * 1.05; // продлеваем дорогу за нижний край экрана
+                state.roadBottomY = h * 1.05;
                 state.roadTopWidth = w * 0.3;
                 state.roadBottomWidth = w * 0.9;
                 state.laneWidthBottom = state.roadBottomWidth / 3;
@@ -842,22 +1106,31 @@
                 goRecord.classList.toggle('new-record', isRecord);
                 $('#go-emoji').textContent = isRecord ? '🏆' : '😢';
                 gameoverOverlay.classList.add('visible');
-                // В функции endGame(), после gameoverOverlay.classList.add('visible');
-                document.getElementById('player-name').value = '';
-                document.getElementById('go-submit-status').textContent = '';
-                document.getElementById('go-submit-status').style.color = '#aaa';
-                const nameInput = document.getElementById('player-name');
-                const submitBtn = document.getElementById('go-submit-score');
-                if (nameInput) nameInput.style.display = 'block';
-                if (submitBtn) {
-                submitBtn.style.display = 'block';
-                submitBtn.disabled = false;
-                submitBtn.textContent = '📤 Отправить в лидерборд';
+
+                const statusEl = document.getElementById('go-auto-submit-status');
+                const registerBtn = document.getElementById('go-register');
+                statusEl.textContent = '';
+                registerBtn.style.display = 'none';
+
+                if (isRecord && state.currentUser) {
+                    submitScore(state.currentUser, state.score)
+                        .then(result => {
+                            statusEl.textContent = `✅ Ты на ${result.position} месте в мире!`;
+                            statusEl.style.color = '#2ecc71';
+                        })
+                        .catch(err => {
+                            statusEl.textContent = '⚠️ Ошибка отправки рекорда';
+                            statusEl.style.color = '#e74c3c';
+                        });
+                } else if (isRecord && !state.currentUser) {
+                    statusEl.textContent = '🏆 Новый рекорд! Войди, чтобы сохранить.';
+                    statusEl.style.color = '#f1c40f';
+                    registerBtn.style.display = 'block';
                 }
             }
 
+            // Игровой цикл
             let lastTime = 0;
-
             function update(dt) {
                 if (!state.gameRunning || state.gamePaused) return;
                 if (dt > 0.1) dt = 0.1;
@@ -1105,7 +1378,6 @@
             function drawFog() {
                 const rty = state.roadTopY;
                 const rby = state.roadBottomY;
-                // Верхний туман
                 const fogTop = rty - 100;
                 const fogBottom = rty + 150;
                 const fog = ctx.createLinearGradient(0, fogTop, 0, fogBottom);
@@ -1115,7 +1387,6 @@
                 ctx.fillStyle = fog;
                 ctx.fillRect(0, fogTop, state.canvasW, fogBottom - fogTop);
 
-                // Нижний туман (скрывает край дороги и уходящие продукты)
                 const bottomFogTop = rby - 80;
                 const bottomFogBottom = state.canvasH;
                 const bottomFog = ctx.createLinearGradient(0, bottomFogTop, 0, bottomFogBottom);
@@ -1128,8 +1399,7 @@
 
             function render() {
                 ctx.clearRect(0, 0, state.canvasW, state.canvasH);
-                let sx = 0,
-                    sy = 0;
+                let sx = 0, sy = 0;
                 if (state.shakeTimer > 0) {
                     const i = state.shakeIntensity * (state.shakeTimer / 0.5);
                     sx = (Math.random() - 0.5) * i * 2;
@@ -1165,9 +1435,7 @@
                 }
             }
 
-            let touchStartX = 0,
-                touchStartY = 0,
-                touchActive = false;
+            let touchStartX = 0, touchStartY = 0, touchActive = false;
             canvas.addEventListener('touchstart', e => {
                 if (!state.gameRunning || state.gamePaused) return;
                 if (e.touches.length === 1) {
@@ -1231,6 +1499,10 @@
             $('#go-menu').addEventListener('click', () => { state.gameRunning = false;
                 gameoverOverlay.classList.remove('visible');
                 showScreen('menu'); });
+            $('#go-register').addEventListener('click', () => {
+                gameoverOverlay.classList.remove('visible');
+                showAuthOverlay();
+            });
             $('#btn-collection-menu').addEventListener('click', () => showScreen('collection'));
             $('#btn-collection-back').addEventListener('click', () => showScreen('menu'));
             $('#btn-detail-back').addEventListener('click', () => { collectionDetail.style.display = 'none';
@@ -1240,54 +1512,21 @@
                 state.playerTargetX = state.canvasW / 2 + state.lane * state.laneWidthBottom;
                 state.playerX = state.playerTargetX; });
 
-            function init() { loadStorage();
+            // Лидерборд и аккаунт
+            document.getElementById('btn-leaderboard').addEventListener('click', showLeaderboardOverlay);
+            document.getElementById('btn-leaderboard-close').addEventListener('click', hideLeaderboardOverlay);
+            document.getElementById('btn-account').addEventListener('click', showAuthOverlay);
+
+            function init() {
+                loadStorage();
                 updateMenuStats();
                 resizeCanvas();
+                loadUser();
                 showScreen('menu');
-                requestAnimationFrame(gameLoop); }
+                requestAnimationFrame(gameLoop);
+            }
             document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', init) : init();
-
-            // === ЛИДЕРБОРД ОБРАБОТЧИКИ ===
-
-            // Кнопка лидерборда в меню
-            document.getElementById('btn-leaderboard').addEventListener('click', showLeaderboardOverlay);
-
-            // Закрыть лидерборд
-            document.getElementById('btn-leaderboard-close').addEventListener('click', hideLeaderboardOverlay);
-
-            // Отправка счёта после игры
-            document.getElementById('go-submit-score').addEventListener('click', async function() {
-            const nameInput = document.getElementById('player-name');
-            const statusP = document.getElementById('go-submit-status');
-            const btn = this;
-            
-            const name = nameInput.value.trim();
-            if (!name) {
-                statusP.textContent = '⚠️ Введи никнейм!';
-                statusP.style.color = '#e74c3c';
-                return;
-            }
-            
-            btn.disabled = true;
-            btn.textContent = '⏳ Отправка...';
-            statusP.textContent = '';
-            
-            const result = await submitScore(name, state.score);
-            
-            if (result.ok) {
-                statusP.textContent = `✅ Ты на ${result.position} месте в мире!`;
-                statusP.style.color = '#2ecc71';
-                nameInput.style.display = 'none';
-                btn.style.display = 'none';
-            } else {
-                statusP.textContent = '❌ ' + (result.error || 'Ошибка сервера');
-                statusP.style.color = '#e74c3c';
-                btn.disabled = false;
-                btn.textContent = '📤 Отправить в лидерборд';
-            }
-            });
         })();
-        
     </script>
 </body>
 </html>

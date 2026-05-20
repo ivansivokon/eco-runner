@@ -1,4 +1,3 @@
-// api/leaderboard.js
 import { Redis } from '@upstash/redis';
 
 const redis = new Redis({
@@ -16,25 +15,32 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // GET — вернуть топ-10
   if (req.method === 'GET') {
     try {
-      const data = await redis.get(LEADERBOARD_KEY);
+      const url = new URL(req.url, `http://${req.headers.host}`);
+      const playerName = url.searchParams.get('name') || '';
+
+      const raw = await redis.get(LEADERBOARD_KEY);
       let entries = [];
-      if (typeof data === 'string') {
-        try { entries = JSON.parse(data); } catch {}
-      } else if (Array.isArray(data)) {
-        entries = data;
+      if (typeof raw === 'string') {
+        try { entries = JSON.parse(raw); } catch {}
+      } else if (Array.isArray(raw)) {
+        entries = raw;
       }
+
       const top = entries.slice(0, 10);
-      return res.status(200).json(top);
-    } catch (error) {
-      console.error('GET error:', error);
+      let position = 0;
+      if (playerName) {
+        const idx = entries.findIndex(e => e.name === playerName);
+        position = idx >= 0 ? idx + 1 : 0;
+      }
+
+      return res.status(200).json({ top, position });
+    } catch (e) {
       return res.status(500).json({ error: 'Failed to fetch leaderboard' });
     }
   }
 
-  // POST — добавить результат
   if (req.method === 'POST') {
     try {
       const { name, score } = req.body;
@@ -48,7 +54,6 @@ export default async function handler(req, res) {
         date: new Date().toISOString()
       };
 
-      // Читаем текущий список
       const raw = await redis.get(LEADERBOARD_KEY);
       let entries = [];
       if (typeof raw === 'string') {
@@ -60,19 +65,13 @@ export default async function handler(req, res) {
       entries.push(entry);
       entries.sort((a, b) => b.score - a.score);
       const trimmed = entries.slice(0, MAX_ENTRIES);
-
-      // Сохраняем
       await redis.set(LEADERBOARD_KEY, JSON.stringify(trimmed));
 
-      // Определяем позицию
-      const position = trimmed.findIndex(
-        e => e.name === cleanName && e.score === entry.score
-      );
-      const realPosition = position === -1 ? trimmed.length : position + 1;
+      const idx = trimmed.findIndex(e => e.name === cleanName && e.score === entry.score);
+      const realPosition = idx === -1 ? trimmed.length : idx + 1;
 
       return res.status(200).json({ success: true, position: realPosition });
-    } catch (error) {
-      console.error('POST error:', error);
+    } catch (e) {
       return res.status(500).json({ error: 'Ошибка сервера' });
     }
   }
