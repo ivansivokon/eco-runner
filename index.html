@@ -1,9 +1,5 @@
 <!DOCTYPE html>
 <html lang="ru">
-    <script
-  type="module"
-  src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.5.0/model-viewer.min.js">
-</script>
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover, maximum-scale=1.0, minimum-scale=1.0">
@@ -77,19 +73,10 @@
             animation: logoBounce 2.2s ease-in-out infinite;
         }
         @keyframes logoBounce {
-            0%,
-            100% {
-                transform: translateY(0);
-            }
-            25% {
-                transform: translateY(-18px);
-            }
-            50% {
-                transform: translateY(0);
-            }
-            70% {
-                transform: translateY(-8px);
-            }
+            0%, 100% { transform: translateY(0); }
+            25% { transform: translateY(-18px); }
+            50% { transform: translateY(0); }
+            70% { transform: translateY(-8px); }
         }
         #menu-screen h1 {
             font-size: 30px;
@@ -184,6 +171,13 @@
             position: absolute;
             inset: 0;
             z-index: 1;
+        }
+        #player-canvas {
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            pointer-events: none;
+            display: none;
         }
         #game-hud {
             position: absolute;
@@ -456,7 +450,6 @@
             font-weight: 700;
             cursor: pointer;
         }
-        /* Auth overlay */
         #auth-overlay {
             position: absolute;
             inset: 0;
@@ -603,6 +596,14 @@
             margin-bottom: 12px;
         }
     </style>
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
 </head>
 <body>
     <div id="app">
@@ -624,24 +625,8 @@
             </div>
         </div>
         <div id="game-screen" class="screen">
-            <model-viewer
-  id="player-3d"
-  src="models/player.glb"
-  autoplay
-  rotation-per-second="0deg 0deg 0deg"
-  camera-orbit="0deg 80deg 3m"
-  camera-target="0m 0.5m 0m"
-  style="
-    position: absolute;
-    width: 120px;
-    height: 120px;
-    transform-origin: center center;
-    display: none;
-    pointer-events: none;
-    z-index: 5;
-  ">
-</model-viewer>
             <canvas id="game-canvas"></canvas>
+            <canvas id="player-canvas"></canvas>
             <div id="game-hud">
                 <div class="hud-top-row"><span id="hud-time">⏱ 0s</span><span id="hud-score">⭐ 0</span></div>
                 <div class="hud-lives-row" id="hud-lives"><span class="heart">❤️</span><span class="heart">❤️</span><span class="heart">❤️</span></div>
@@ -704,967 +689,1087 @@
             </div>
         </div>
     </div>
-    <script>
-        (function() {
-            const FOOD_DATA = [
-                { id: 'apple', name: 'Яблоко', emoji: '🍎', type: 'healthy' },
-                { id: 'banana', name: 'Банан', emoji: '🍌', type: 'healthy' },
-                { id: 'orange', name: 'Апельсин', emoji: '🍊', type: 'healthy' },
-                { id: 'grape', name: 'Виноград', emoji: '🍇', type: 'healthy' },
-                { id: 'strawberry', name: 'Клубника', emoji: '🍓', type: 'healthy' },
-                { id: 'blueberry', name: 'Черника', emoji: '🫐', type: 'healthy' },
-                { id: 'watermelon', name: 'Арбуз', emoji: '🍉', type: 'healthy' },
-                { id: 'kiwi', name: 'Киви', emoji: '🥝', type: 'healthy' },
-                { id: 'pineapple', name: 'Ананас', emoji: '🍍', type: 'healthy' },
-                { id: 'pear', name: 'Груша', emoji: '🍐', type: 'healthy' },
-                { id: 'carrot', name: 'Морковь', emoji: '🥕', type: 'healthy' },
-                { id: 'broccoli', name: 'Брокколи', emoji: '🥦', type: 'healthy' },
-                { id: 'fish', name: 'Рыба', emoji: '🐟', type: 'healthy' },
-                { id: 'egg', name: 'Яйцо', emoji: '🥚', type: 'healthy' },
-                { id: 'nuts', name: 'Орехи', emoji: '🌰', type: 'healthy' },
-                { id: 'milk', name: 'Молоко', emoji: '🥛', type: 'healthy' },
-                { id: 'avocado', name: 'Авокадо', emoji: '🥑', type: 'healthy' },
-                { id: 'tomato', name: 'Помидор', emoji: '🍅', type: 'healthy' },
-                { id: 'cucumber', name: 'Огурец', emoji: '🥒', type: 'healthy' },
-                { id: 'bread', name: 'Хлеб', emoji: '🍞', type: 'healthy' },
-                { id: 'rice', name: 'Рис', emoji: '🍚', type: 'healthy' },
-                { id: 'chicken', name: 'Курица', emoji: '🍗', type: 'healthy' },
-                { id: 'pasta', name: 'Паста', emoji: '🍝', type: 'healthy' },
-                { id: 'salad', name: 'Салат', emoji: '🥗', type: 'healthy' },
-                { id: 'sushi', name: 'Суши', emoji: '🍣', type: 'healthy' },
-                { id: 'onigiri', name: 'Онигири', emoji: '🍙', type: 'healthy' },
-                { id: 'honey', name: 'Мёд', emoji: '🍯', type: 'healthy' },
-                { id: 'coconut', name: 'Кокос', emoji: '🥥', type: 'healthy' },
-                { id: 'corn', name: 'Кукуруза', emoji: '🌽', type: 'healthy' },
-                { id: 'peas', name: 'Горох', emoji: '🫛', type: 'healthy' },
-                { id: 'onion', name: 'Лук', emoji: '🧅', type: 'healthy' },
-                { id: 'potato', name: 'Картофель', emoji: '🥔', type: 'healthy' },
-                { id: 'burger', name: 'Бургер', emoji: '🍔', type: 'harmful' },
-                { id: 'pizza', name: 'Пицца', emoji: '🍕', type: 'harmful' },
-                { id: 'pastry', name: 'Пирожное', emoji: '🧁', type: 'harmful' },
-                { id: 'fries', name: 'Картофель фри', emoji: '🍟', type: 'harmful' },
-                { id: 'donut', name: 'Пончик', emoji: '🍩', type: 'harmful' },
-                { id: 'candy', name: 'Конфеты', emoji: '🍬', type: 'harmful' },
-                { id: 'soda', name: 'Газировка', emoji: '🥤', type: 'harmful' },
-                { id: 'bacon', name: 'Бекон', emoji: '🥓', type: 'harmful' },
-                { id: 'hotdog', name: 'Хот-дог', emoji: '🌭', type: 'harmful' },
-                { id: 'icecream', name: 'Мороженое', emoji: '🍦', type: 'harmful' },
-                { id: 'cake', name: 'Торт', emoji: '🎂', type: 'harmful' },
-                { id: 'beer', name: 'Пиво', emoji: '🍺', type: 'harmful' },
-                { id: 'wine', name: 'Вино', emoji: '🍷', type: 'harmful' },
-                { id: 'champagne', name: 'Шампанское', emoji: '🍾', type: 'harmful' },
-                { id: 'cheese', name: 'Сыр', emoji: '🧀', type: 'harmful' },
-                { id: 'chocolate', name: 'Шоколад', emoji: '🍫', type: 'harmful' }
-            ];
-            const playerModel3D = document.getElementById('player-3d');
-            const AVATARS = FOOD_DATA.filter(f => f.type === 'healthy').map(f => f.emoji);
-            const $ = s => document.querySelector(s);
-            const app = $('#app');
-            const menuScreen = $('#menu-screen');
-            const gameScreen = $('#game-screen');
-            const collectionScreen = $('#collection-screen');
-            const canvas = $('#game-canvas');
-            const ctx = canvas.getContext('2d');
-            const pauseOverlay = $('#pause-overlay');
-            const gameoverOverlay = $('#gameover-overlay');
-            const hudTime = $('#hud-time');
-            const hudScore = $('#hud-score');
-            const hudLives = $('#hud-lives');
-            const recordVal = $('#record-val');
-            const lastVal = $('#last-val');
-            const collectionGrid = $('#collection-grid');
-            const collectionDetail = $('#collection-detail');
 
-            const state = {
-                screen: 'menu',
-                gameRunning: false,
-                gamePaused: false,
-                score: 0,
-                lives: 3,
-                gameTime: 0,
-                lane: 0,
-                playerX: 0,
-                playerTargetX: 0,
-                speed: 0.24,
-                baseSpeed: 0.24,
-                maxSpeed: 0.9,
-                speedIncrement: 0.015,
-                spawnInterval: 1.0,
-                minSpawnInterval: 0.3,
-                spawnTimer: 0,
-                foods: [],
-                bgGlows: [],
-                roadMarkers: [],
-                invincibleTimer: 0,
-                shakeTimer: 0,
-                shakeIntensity: 0,
-                record: 0,
-                lastScore: null,
-                discoveredFoods: {},
-                canvasW: 0,
-                canvasH: 0,
-                roadTopY: 0,
-                roadBottomY: 0,
-                roadTopWidth: 0,
-                roadBottomWidth: 0,
-                laneWidthBottom: 0,
-                playerProgress: 0.8,
-                speedIncrementAcc: 0,
-                markerSpawnTimer: 0,
-                currentUser: null,
-                currentUserAvatar: '🏃',
-                currentUserRecord: 0,
-                selectedAvatar: AVATARS[0],
-                guestRecord: 0
-            };
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-            const MAX_GLOWS = 2;
+        // 3D‑состояние
+        let threeScene, threeCamera, threeRenderer;
+        let playerModel = null;
+        let mixer = null;
+        let animationAction = null;
+        let playerCanvas;
+        let webGLSupported = false;
+        let modelBaseSize = 1; // базовый размер модели в единицах (вычисляется после загрузки)
 
-            // ====== Хеширование пароля ======
-            async function hashPassword(password) {
-                const encoder = new TextEncoder();
-                const data = encoder.encode(password);
-                const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-                const hashArray = Array.from(new Uint8Array(hashBuffer));
-                return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        // Данные игры
+        const FOOD_DATA = [
+            { id: 'apple', name: 'Яблоко', emoji: '🍎', type: 'healthy' },
+            { id: 'banana', name: 'Банан', emoji: '🍌', type: 'healthy' },
+            { id: 'orange', name: 'Апельсин', emoji: '🍊', type: 'healthy' },
+            { id: 'grape', name: 'Виноград', emoji: '🍇', type: 'healthy' },
+            { id: 'strawberry', name: 'Клубника', emoji: '🍓', type: 'healthy' },
+            { id: 'blueberry', name: 'Черника', emoji: '🫐', type: 'healthy' },
+            { id: 'watermelon', name: 'Арбуз', emoji: '🍉', type: 'healthy' },
+            { id: 'kiwi', name: 'Киви', emoji: '🥝', type: 'healthy' },
+            { id: 'pineapple', name: 'Ананас', emoji: '🍍', type: 'healthy' },
+            { id: 'pear', name: 'Груша', emoji: '🍐', type: 'healthy' },
+            { id: 'carrot', name: 'Морковь', emoji: '🥕', type: 'healthy' },
+            { id: 'broccoli', name: 'Брокколи', emoji: '🥦', type: 'healthy' },
+            { id: 'fish', name: 'Рыба', emoji: '🐟', type: 'healthy' },
+            { id: 'egg', name: 'Яйцо', emoji: '🥚', type: 'healthy' },
+            { id: 'nuts', name: 'Орехи', emoji: '🌰', type: 'healthy' },
+            { id: 'milk', name: 'Молоко', emoji: '🥛', type: 'healthy' },
+            { id: 'avocado', name: 'Авокадо', emoji: '🥑', type: 'healthy' },
+            { id: 'tomato', name: 'Помидор', emoji: '🍅', type: 'healthy' },
+            { id: 'cucumber', name: 'Огурец', emoji: '🥒', type: 'healthy' },
+            { id: 'bread', name: 'Хлеб', emoji: '🍞', type: 'healthy' },
+            { id: 'rice', name: 'Рис', emoji: '🍚', type: 'healthy' },
+            { id: 'chicken', name: 'Курица', emoji: '🍗', type: 'healthy' },
+            { id: 'pasta', name: 'Паста', emoji: '🍝', type: 'healthy' },
+            { id: 'salad', name: 'Салат', emoji: '🥗', type: 'healthy' },
+            { id: 'sushi', name: 'Суши', emoji: '🍣', type: 'healthy' },
+            { id: 'onigiri', name: 'Онигири', emoji: '🍙', type: 'healthy' },
+            { id: 'honey', name: 'Мёд', emoji: '🍯', type: 'healthy' },
+            { id: 'coconut', name: 'Кокос', emoji: '🥥', type: 'healthy' },
+            { id: 'corn', name: 'Кукуруза', emoji: '🌽', type: 'healthy' },
+            { id: 'peas', name: 'Горох', emoji: '🫛', type: 'healthy' },
+            { id: 'onion', name: 'Лук', emoji: '🧅', type: 'healthy' },
+            { id: 'potato', name: 'Картофель', emoji: '🥔', type: 'healthy' },
+            { id: 'burger', name: 'Бургер', emoji: '🍔', type: 'harmful' },
+            { id: 'pizza', name: 'Пицца', emoji: '🍕', type: 'harmful' },
+            { id: 'pastry', name: 'Пирожное', emoji: '🧁', type: 'harmful' },
+            { id: 'fries', name: 'Картофель фри', emoji: '🍟', type: 'harmful' },
+            { id: 'donut', name: 'Пончик', emoji: '🍩', type: 'harmful' },
+            { id: 'candy', name: 'Конфеты', emoji: '🍬', type: 'harmful' },
+            { id: 'soda', name: 'Газировка', emoji: '🥤', type: 'harmful' },
+            { id: 'bacon', name: 'Бекон', emoji: '🥓', type: 'harmful' },
+            { id: 'hotdog', name: 'Хот-дог', emoji: '🌭', type: 'harmful' },
+            { id: 'icecream', name: 'Мороженое', emoji: '🍦', type: 'harmful' },
+            { id: 'cake', name: 'Торт', emoji: '🎂', type: 'harmful' },
+            { id: 'beer', name: 'Пиво', emoji: '🍺', type: 'harmful' },
+            { id: 'wine', name: 'Вино', emoji: '🍷', type: 'harmful' },
+            { id: 'champagne', name: 'Шампанское', emoji: '🍾', type: 'harmful' },
+            { id: 'cheese', name: 'Сыр', emoji: '🧀', type: 'harmful' },
+            { id: 'chocolate', name: 'Шоколад', emoji: '🍫', type: 'harmful' }
+        ];
+        const AVATARS = FOOD_DATA.filter(f => f.type === 'healthy').map(f => f.emoji);
+        const $ = s => document.querySelector(s);
+        const app = $('#app');
+        const menuScreen = $('#menu-screen');
+        const gameScreen = $('#game-screen');
+        const collectionScreen = $('#collection-screen');
+        const canvas = $('#game-canvas');
+        const ctx = canvas.getContext('2d');
+        const pauseOverlay = $('#pause-overlay');
+        const gameoverOverlay = $('#gameover-overlay');
+        const hudTime = $('#hud-time');
+        const hudScore = $('#hud-score');
+        const hudLives = $('#hud-lives');
+        const recordVal = $('#record-val');
+        const lastVal = $('#last-val');
+        const collectionGrid = $('#collection-grid');
+        const collectionDetail = $('#collection-detail');
+
+        const state = {
+            screen: 'menu',
+            gameRunning: false,
+            gamePaused: false,
+            score: 0,
+            lives: 3,
+            gameTime: 0,
+            lane: 0,
+            playerX: 0,
+            playerTargetX: 0,
+            speed: 0.24,
+            baseSpeed: 0.24,
+            maxSpeed: 0.9,
+            speedIncrement: 0.015,
+            spawnInterval: 1.0,
+            minSpawnInterval: 0.3,
+            spawnTimer: 0,
+            foods: [],
+            bgGlows: [],
+            roadMarkers: [],
+            invincibleTimer: 0,
+            shakeTimer: 0,
+            shakeIntensity: 0,
+            record: 0,
+            lastScore: null,
+            discoveredFoods: {},
+            canvasW: 0,
+            canvasH: 0,
+            roadTopY: 0,
+            roadBottomY: 0,
+            roadTopWidth: 0,
+            roadBottomWidth: 0,
+            laneWidthBottom: 0,
+            playerProgress: 0.8,
+            speedIncrementAcc: 0,
+            markerSpawnTimer: 0,
+            currentUser: null,
+            currentUserAvatar: '🏃',
+            currentUserRecord: 0,
+            selectedAvatar: AVATARS[0]
+        };
+
+        const MAX_GLOWS = 2;
+
+        // ====== Хеширование пароля ======
+        async function hashPassword(password) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(password);
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+        }
+
+        // ====== Аккаунт API ======
+        async function apiRegister(name, password, avatar) {
+            const passwordHash = await hashPassword(password);
+            const res = await fetch('/api/account/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, passwordHash, avatar })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Ошибка регистрации');
+            return data;
+        }
+        async function apiLogin(name, password) {
+            const passwordHash = await hashPassword(password);
+            const res = await fetch('/api/account/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, passwordHash })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Ошибка входа');
+            return data;
+        }
+
+        // ====== Лидерборд с позицией ======
+        async function loadLeaderboard(playerName = '') {
+            const params = playerName ? `?name=${encodeURIComponent(playerName)}` : '';
+            const res = await fetch(`/api/leaderboard${params}`);
+            if (!res.ok) return { top: [], position: 0 };
+            return await res.json();
+        }
+        async function submitScore(name, score, avatar) {
+            const res = await fetch('/api/leaderboard', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, score, avatar })
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data.error || 'Ошибка');
+            return data;
+        }
+
+        function escapeHTML(str) {
+            const div = document.createElement('div');
+            div.appendChild(document.createTextNode(str));
+            return div.innerHTML;
+        }
+
+        function loadUser() {
+            const savedUser = localStorage.getItem('ecoUser');
+            const savedAvatar = localStorage.getItem('ecoAvatar');
+            if (savedUser) {
+                state.currentUser = savedUser;
+                state.currentUserAvatar = savedAvatar || '🏃';
             }
+            updateAccountButton();
+        }
 
-            // ====== Аккаунт API ======
-            async function apiRegister(name, password, avatar) {
-                const passwordHash = await hashPassword(password);
-                const res = await fetch('/api/account/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, passwordHash, avatar })
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || 'Ошибка регистрации');
-                return data;
+        function saveUserData() {
+            if (state.currentUser) {
+                localStorage.setItem('ecoUser', state.currentUser);
+                localStorage.setItem('ecoAvatar', state.currentUserAvatar);
+            } else {
+                localStorage.removeItem('ecoUser');
+                localStorage.removeItem('ecoAvatar');
             }
-            async function apiLogin(name, password) {
-                const passwordHash = await hashPassword(password);
-                const res = await fetch('/api/account/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, passwordHash })
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || 'Ошибка входа');
-                return data;
-            }
+        }
 
-            // ====== Лидерборд с позицией ======
-            async function loadLeaderboard(playerName = '') {
-                const params = playerName ? `?name=${encodeURIComponent(playerName)}` : '';
-                const res = await fetch(`/api/leaderboard${params}`);
-                if (!res.ok) return { top: [], position: 0 };
-                return await res.json();
-            }
-            async function submitScore(name, score, avatar) {
-                const res = await fetch('/api/leaderboard', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, score, avatar })
-                });
-                const data = await res.json();
-                if (!res.ok) throw new Error(data.error || 'Ошибка');
-                return data;
-            }
+        function updateAccountButton() {
+            const btn = document.getElementById('btn-account');
+            btn.textContent = state.currentUser ? `👤 ${state.currentUser}` : '👤 Аккаунт';
+        }
 
-            function escapeHTML(str) {
+        // ====== UI функции ======
+        async function showLeaderboardOverlay() {
+            const overlay = document.getElementById('leaderboard-overlay');
+            const listEl = document.getElementById('leaderboard-list');
+            const posEl = document.getElementById('player-position');
+            overlay.style.opacity = '1';
+            overlay.style.pointerEvents = 'all';
+            listEl.innerHTML = '<p style="text-align:center; color:#889;">Загрузка...</p>';
+            posEl.textContent = '';
+
+            const { top, position } = await loadLeaderboard(state.currentUser || '');
+            if (!top || top.length === 0) {
+                listEl.innerHTML = '<p style="text-align:center; color:#889;">Пока никого нет. Стань первым!</p>';
+            } else {
+                listEl.innerHTML = top.map((entry, i) => {
+                    const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
+                    const bg = i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent';
+                    return `<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:${bg}; border-radius:10px; margin-bottom:4px;">
+                        <span style="font-weight:600;">${medal} ${escapeHTML(entry.avatar||'🏃')} ${escapeHTML(entry.name)}</span>
+                        <span style="font-weight:800; color:#f1c40f;">⭐ ${entry.score}</span>
+                    </div>`;
+                }).join('');
+            }
+            if (state.currentUser) {
+                posEl.textContent = position > 0 ? `Твоя позиция: ${position} место` : 'Тебя пока нет в топе';
+            }
+        }
+        function hideLeaderboardOverlay() {
+            document.getElementById('leaderboard-overlay').style.opacity = '0';
+            document.getElementById('leaderboard-overlay').style.pointerEvents = 'none';
+        }
+
+        // ====== Окно авторизации ======
+        function showAuthOverlay() {
+            const overlay = document.getElementById('auth-overlay');
+            const form = document.getElementById('auth-form');
+            const profile = document.getElementById('auth-profile');
+            const tabs = document.getElementById('auth-tabs');
+            overlay.classList.add('visible');
+
+            if (state.currentUser) {
+                form.style.display = 'none';
+                profile.style.display = 'block';
+                tabs.style.display = 'none';
+                document.getElementById('profile-avatar').textContent = state.currentUserAvatar;
+                document.getElementById('profile-name').textContent = state.currentUser;
+                document.getElementById('profile-record').textContent = `Рекорд: ${state.currentUserRecord || state.record}`;
+            } else {
+                form.style.display = 'block';
+                profile.style.display = 'none';
+                tabs.style.display = 'flex';
+                document.getElementById('auth-error').textContent = '';
+                setAuthTab('login');
+            }
+            renderAvatarGrid();
+        }
+        function hideAuthOverlay() {
+            document.getElementById('auth-overlay').classList.remove('visible');
+        }
+        function setAuthTab(tab) {
+            const tabLogin = document.getElementById('tab-login');
+            const tabRegister = document.getElementById('tab-register');
+            tabLogin.classList.toggle('active', tab === 'login');
+            tabRegister.classList.toggle('active', tab === 'register');
+            const isRegister = tab === 'register';
+            document.getElementById('auth-password2').style.display = isRegister ? 'block' : 'none';
+            document.getElementById('avatar-selection').style.display = isRegister ? 'block' : 'none';
+            document.getElementById('auth-submit').textContent = isRegister ? 'Зарегистрироваться' : 'Войти';
+        }
+        function renderAvatarGrid() {
+            const grid = document.getElementById('avatar-grid');
+            grid.innerHTML = '';
+            AVATARS.forEach(emoji => {
                 const div = document.createElement('div');
-                div.appendChild(document.createTextNode(str));
-                return div.innerHTML;
-            }
+                div.className = 'avatar-option' + (emoji === state.selectedAvatar ? ' selected' : '');
+                div.textContent = emoji;
+                div.addEventListener('click', () => {
+                    state.selectedAvatar = emoji;
+                    renderAvatarGrid();
+                });
+                grid.appendChild(div);
+            });
+        }
 
-            function loadUser() {
-                const savedUser = localStorage.getItem('ecoUser');
-                const savedAvatar = localStorage.getItem('ecoAvatar');
-                if (savedUser) {
-                    state.currentUser = savedUser;
-                    state.currentUserAvatar = savedAvatar || '🏃';
-                }
-                updateAccountButton();
-            }
+        document.getElementById('tab-login').addEventListener('click', () => setAuthTab('login'));
+        document.getElementById('tab-register').addEventListener('click', () => setAuthTab('register'));
+        document.getElementById('auth-close-btn').addEventListener('click', hideAuthOverlay);
 
-            function saveUserData() {
-                if (state.currentUser) {
-                    localStorage.setItem('ecoUser', state.currentUser);
-                    localStorage.setItem('ecoAvatar', state.currentUserAvatar);
-                } else {
-                    localStorage.removeItem('ecoUser');
-                    localStorage.removeItem('ecoAvatar');
-                }
-            }
+        document.getElementById('auth-submit').addEventListener('click', async () => {
+            const tab = document.querySelector('.auth-tab.active')?.id.split('-')[1];
+            const name = document.getElementById('auth-name').value.trim();
+            const password = document.getElementById('auth-password').value;
+            const password2 = document.getElementById('auth-password2').value;
+            const errorEl = document.getElementById('auth-error');
+            errorEl.textContent = '';
+            if (!name) return errorEl.textContent = 'Введи ник';
+            if (!password) return errorEl.textContent = 'Введи пароль';
+            if (tab === 'register' && password !== password2) return errorEl.textContent = 'Пароли не совпадают';
 
-            function updateAccountButton() {
-                const btn = document.getElementById('btn-account');
-                btn.textContent = state.currentUser ? `👤 ${state.currentUser}` : '👤 Аккаунт';
-            }
-
-            // ====== UI функции ======
-            async function showLeaderboardOverlay() {
-                const overlay = document.getElementById('leaderboard-overlay');
-                const listEl = document.getElementById('leaderboard-list');
-                const posEl = document.getElementById('player-position');
-                overlay.style.opacity = '1';
-                overlay.style.pointerEvents = 'all';
-                listEl.innerHTML = '<p style="text-align:center; color:#889;">Загрузка...</p>';
-                posEl.textContent = '';
-
-                const { top, position } = await loadLeaderboard(state.currentUser || '');
-                if (!top || top.length === 0) {
-                    listEl.innerHTML = '<p style="text-align:center; color:#889;">Пока никого нет. Стань первым!</p>';
-                } else {
-                    listEl.innerHTML = top.map((entry, i) => {
-                        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}.`;
-                        const bg = i % 2 === 0 ? 'rgba(255,255,255,0.03)' : 'transparent';
-                        return `<div style="display:flex; justify-content:space-between; align-items:center; padding:10px 12px; background:${bg}; border-radius:10px; margin-bottom:4px;">
-                            <span style="font-weight:600;">${medal} ${escapeHTML(entry.avatar||'🏃')} ${escapeHTML(entry.name)}</span>
-                            <span style="font-weight:800; color:#f1c40f;">⭐ ${entry.score}</span>
-                        </div>`;
-                    }).join('');
-                }
-                if (state.currentUser) {
-                    posEl.textContent = position > 0 ? `Твоя позиция: ${position} место` : 'Тебя пока нет в топе';
-                }
-            }
-            function hideLeaderboardOverlay() {
-                document.getElementById('leaderboard-overlay').style.opacity = '0';
-                document.getElementById('leaderboard-overlay').style.pointerEvents = 'none';
-            }
-
-            // ====== Окно авторизации ======
-            function showAuthOverlay() {
-                const overlay = document.getElementById('auth-overlay');
-                const form = document.getElementById('auth-form');
-                const profile = document.getElementById('auth-profile');
-                const tabs = document.getElementById('auth-tabs');
-                const avatarSelection = document.getElementById('avatar-selection');
-                overlay.classList.add('visible');
-
-                if (state.currentUser) {
-                    form.style.display = 'none';
-                    profile.style.display = 'block';
-                    tabs.style.display = 'none';
-                    document.getElementById('profile-avatar').textContent = state.currentUserAvatar;
-                    document.getElementById('profile-name').textContent = state.currentUser;
-                    document.getElementById('profile-record').textContent = `Рекорд: ${state.currentUserRecord || state.record}`;
-                } else {
-                    form.style.display = 'block';
-                    profile.style.display = 'none';
-                    tabs.style.display = 'flex';
-                    document.getElementById('auth-error').textContent = '';
+            try {
+                if (tab === 'register') {
+                    await apiRegister(name, password, state.selectedAvatar);
+                    errorEl.textContent = 'Регистрация успешна! Теперь войдите.';
                     setAuthTab('login');
-                }
-                renderAvatarGrid();
-            }
-            function hideAuthOverlay() {
-                document.getElementById('auth-overlay').classList.remove('visible');
-            }
-            function setAuthTab(tab) {
-                const tabLogin = document.getElementById('tab-login');
-                const tabRegister = document.getElementById('tab-register');
-                tabLogin.classList.toggle('active', tab === 'login');
-                tabRegister.classList.toggle('active', tab === 'register');
-                const isRegister = tab === 'register';
-                document.getElementById('auth-password2').style.display = isRegister ? 'block' : 'none';
-                document.getElementById('avatar-selection').style.display = isRegister ? 'block' : 'none';
-                document.getElementById('auth-submit').textContent = isRegister ? 'Зарегистрироваться' : 'Войти';
-            }
-            function renderAvatarGrid() {
-                const grid = document.getElementById('avatar-grid');
-                grid.innerHTML = '';
-                AVATARS.forEach(emoji => {
-                    const div = document.createElement('div');
-                    div.className = 'avatar-option' + (emoji === state.selectedAvatar ? ' selected' : '');
-                    div.textContent = emoji;
-                    div.addEventListener('click', () => {
-                        state.selectedAvatar = emoji;
-                        renderAvatarGrid();
-                    });
-                    grid.appendChild(div);
-                });
-            }
-
-            document.getElementById('tab-login').addEventListener('click', () => setAuthTab('login'));
-            document.getElementById('tab-register').addEventListener('click', () => setAuthTab('register'));
-            document.getElementById('auth-close-btn').addEventListener('click', hideAuthOverlay);
-
-            document.getElementById('auth-submit').addEventListener('click', async () => {
-                const tab = document.querySelector('.auth-tab.active')?.id.split('-')[1];
-                const name = document.getElementById('auth-name').value.trim();
-                const password = document.getElementById('auth-password').value;
-                const password2 = document.getElementById('auth-password2').value;
-                const errorEl = document.getElementById('auth-error');
-                errorEl.textContent = '';
-                if (!name) return errorEl.textContent = 'Введи ник';
-                if (!password) return errorEl.textContent = 'Введи пароль';
-                if (tab === 'register' && password !== password2) return errorEl.textContent = 'Пароли не совпадают';
-
-                try {
-                    if (tab === 'register') {
-                        await apiRegister(name, password, state.selectedAvatar);
-                        // автоматический вход после регистрации
-                        const data = await apiLogin(name, password);
-                        state.guestRecord = state.record;
-                        state.currentUser = name;
-                        state.currentUserAvatar = data.avatar || '🏃';
-                        state.currentUserRecord = data.record || 0;
-                        state.record = data.record || 0;
+                    document.getElementById('auth-password').value = '';
+                    document.getElementById('auth-password2').value = '';
+                } else {
+                    const data = await apiLogin(name, password);
+                    state.currentUser = name;
+                    state.currentUserAvatar = data.avatar || '🏃';
+                    state.currentUserRecord = data.record || 0;
+                    if (data.record > state.record) {
+                        state.record = data.record;
                         saveStorage();
                         updateMenuStats();
-                        saveUserData();
-                        updateAccountButton();
-                        hideAuthOverlay();
-                    } else {
-                        const data = await apiLogin(name, password);
-                        state.guestRecord = state.record;
-                        state.currentUser = name;
-                        state.currentUserAvatar = data.avatar || '🏃';
-                        state.currentUserRecord = data.record || 0;
-                        state.record = data.record || 0;
-                        saveStorage();
-                        updateMenuStats();
-                        saveUserData();
-                        updateAccountButton();
-                        hideAuthOverlay();
                     }
-                } catch (e) {
-                    errorEl.textContent = e.message;
+                    saveUserData();
+                    updateAccountButton();
+                    hideAuthOverlay();
                 }
-            });
+            } catch (e) {
+                errorEl.textContent = e.message;
+            }
+        });
 
-            document.getElementById('auth-logout-btn').addEventListener('click', () => {
+        document.getElementById('auth-logout-btn').addEventListener('click', () => {
+            state.currentUser = null;
+            state.currentUserAvatar = '🏃';
+            state.currentUserRecord = 0;
+            saveUserData();
+            updateAccountButton();
+            hideAuthOverlay();
+        });
+
+        function loadStorage() {
+            try {
+                state.record = parseInt(localStorage.getItem('foodRun_record')) || 0;
+                const ls = localStorage.getItem('foodRun_lastScore');
+                state.lastScore = ls && ls !== 'null' ? parseInt(ls) : null;
+                const disc = localStorage.getItem('foodRun_collection');
+                if (disc) state.discoveredFoods = JSON.parse(disc);
+            } catch (e) {
                 state.record = 0;
-                state.guestRecord = 0;
-                state.currentUser = null;
-                state.currentUserAvatar = '🏃';
-                state.currentUserRecord = 0;
-                saveUserData();
-                saveStorage();
-                updateMenuStats();
-                updateAccountButton();
-                hideAuthOverlay();
+                state.lastScore = null;
+                state.discoveredFoods = {};
+            }
+        }
+        function saveStorage() {
+            try {
+                localStorage.setItem('foodRun_record', state.record);
+                localStorage.setItem('foodRun_lastScore', state.lastScore);
+                localStorage.setItem('foodRun_collection', JSON.stringify(state.discoveredFoods));
+            } catch (e) {}
+        }
+        function updateMenuStats() {
+            recordVal.textContent = state.record;
+            lastVal.textContent = state.lastScore !== null ? state.lastScore : '—';
+        }
+
+        function showScreen(name) {
+            state.screen = name;
+            [menuScreen, gameScreen, collectionScreen].forEach(s => s.classList.remove('active'));
+            if (name === 'menu') {
+                menuScreen.classList.add('active');
+                if (playerCanvas) playerCanvas.style.display = 'none';
+            } else if (name === 'game') {
+                gameScreen.classList.add('active');
+                if (!threeRenderer) initThreeJS();
+                if (playerCanvas && webGLSupported) playerCanvas.style.display = 'block';
+                else if (playerCanvas) playerCanvas.style.display = 'none';
+            } else if (name === 'collection') {
+                collectionScreen.classList.add('active');
+                renderCollection();
+                collectionDetail.style.display = 'none';
+                collectionGrid.style.display = 'grid';
+                if (playerCanvas) playerCanvas.style.display = 'none';
+            }
+        }
+
+        function renderCollection() {
+            collectionGrid.innerHTML = '';
+            const discovered = Object.keys(state.discoveredFoods);
+            if (discovered.length === 0) {
+                collectionGrid.innerHTML = '<p style="color:#889;text-align:center;width:100%;padding:30px;">Пока ничего не открыто.</p>';
+                return;
+            }
+            discovered.forEach(foodId => {
+                const fd = FOOD_DATA.find(f => f.id === foodId);
+                if (!fd) return;
+                const card = document.createElement('div');
+                card.className = 'collection-card';
+                card.innerHTML = `
+                    <span class="card-emoji">${fd.emoji}</span>
+                    <span class="card-dot ${fd.type}"></span>
+                    <span class="card-name">${fd.name}</span>
+                `;
+                card.addEventListener('click', () => showCollectionDetail(fd));
+                collectionGrid.appendChild(card);
             });
+        }
 
-            // ====== Старые функции хранилища ======
-            function loadStorage() {
-                try {
-                    state.record = parseInt(localStorage.getItem('foodRun_record')) || 0;
-                    const ls = localStorage.getItem('foodRun_lastScore');
-                    state.lastScore = ls && ls !== 'null' ? parseInt(ls) : null;
-                    const disc = localStorage.getItem('foodRun_collection');
-                    if (disc) state.discoveredFoods = JSON.parse(disc);
-                } catch (e) {
-                    state.record = 0;
-                    state.lastScore = null;
-                    state.discoveredFoods = {};
+        function showCollectionDetail(fd) {
+            collectionGrid.style.display = 'none';
+            collectionDetail.style.display = 'block';
+            $('#detail-emoji').textContent = fd.emoji;
+            $('#detail-name').textContent = fd.name;
+            const typeEl = $('#detail-type');
+            typeEl.textContent = fd.type === 'healthy' ? '✅ Полезная еда' : '🗑️ Вредная еда';
+            typeEl.className = 'detail-type ' + fd.type;
+            $('#detail-info').textContent = fd.info || '';
+        }
+
+        function updateHUD() {
+            hudScore.textContent = '⭐ ' + state.score;
+            hudTime.textContent = '⏱ ' + Math.floor(state.gameTime) + 's';
+            const hearts = hudLives.querySelectorAll('.heart');
+            hearts.forEach((h, i) => h.classList.toggle('lost', i >= state.lives));
+        }
+
+        function resizeCanvas() {
+            const rect = app.getBoundingClientRect();
+            const w = rect.width, h = rect.height;
+            state.canvasW = w;
+            state.canvasH = h;
+            canvas.width = w * (window.devicePixelRatio || 1);
+            canvas.height = h * (window.devicePixelRatio || 1);
+            canvas.style.width = w + 'px';
+            canvas.style.height = h + 'px';
+            ctx.setTransform(1, 0, 0, 1, 0, 0);
+            ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+            state.roadTopY = h * 0.26;
+            state.roadBottomY = h * 1.05;
+            state.roadTopWidth = w * 0.3;
+            state.roadBottomWidth = w * 0.9;
+            state.laneWidthBottom = state.roadBottomWidth / 3;
+            state.playerTargetX = w / 2 + state.lane * state.laneWidthBottom;
+            state.playerX = state.playerTargetX;
+
+            if (playerCanvas) {
+                playerCanvas.width = w;
+                playerCanvas.height = h;
+                playerCanvas.style.width = w + 'px';
+                playerCanvas.style.height = h + 'px';
+                if (threeRenderer && webGLSupported) {
+                    threeRenderer.setSize(w, h);
+                    threeRenderer.setPixelRatio(1);
+                }
+                if (threeCamera && webGLSupported) {
+                    threeCamera.left = 0;
+                    threeCamera.right = w;
+                    threeCamera.top = h;
+                    threeCamera.bottom = 0;
+                    threeCamera.updateProjectionMatrix();
                 }
             }
-            function saveStorage() {
-                try {
-                    localStorage.setItem('foodRun_record', state.record);
-                    localStorage.setItem('foodRun_lastScore', state.lastScore);
-                    localStorage.setItem('foodRun_collection', JSON.stringify(state.discoveredFoods));
-                } catch (e) {}
+        }
+
+        function roadWidthAt(p) { return state.roadTopWidth + p * (state.roadBottomWidth - state.roadTopWidth); }
+        function roadYAt(p) { return state.roadTopY + p * (state.roadBottomY - state.roadTopY); }
+        function laneCenterX(lane, p) {
+            const rw = roadWidthAt(p);
+            return state.canvasW / 2 + lane * (rw / 3);
+        }
+        function scaleAt(p) { return 0.22 + p * 1.05; }
+
+        function addBackgroundEffect(color, emoji) {
+            while (state.bgGlows.length >= MAX_GLOWS) state.bgGlows.shift();
+            state.bgGlows.push({
+                x: state.canvasW / 2,
+                yBottom: state.canvasH,
+                height: state.canvasH * 0.55,
+                life: 0.9,
+                maxLife: 0.9,
+                color
+            });
+        }
+
+        function spawnFood() {
+            const fd = FOOD_DATA[Math.floor(Math.random() * FOOD_DATA.length)];
+            const lane = Math.floor(Math.random() * 3) - 1;
+            state.foods.push({ foodData: fd, lane, progress: -0.1, collected: false });
+        }
+
+        function resetGame() {
+            state.gameRunning = true;
+            state.gamePaused = false;
+            state.score = 0;
+            state.lives = 3;
+            state.gameTime = 0;
+            state.lane = 0;
+            state.speed = state.baseSpeed;
+            state.spawnInterval = 1.0;
+            state.spawnTimer = 0;
+            state.foods = [];
+            state.bgGlows = [];
+            state.roadMarkers = [];
+            state.invincibleTimer = 0;
+            state.shakeTimer = 0;
+            state.shakeIntensity = 0;
+            state.speedIncrementAcc = 0;
+            state.markerSpawnTimer = 0;
+            state.playerTargetX = state.canvasW / 2;
+            state.playerX = state.playerTargetX;
+            state.lastTimerValue = 0;
+            updateHUD();
+            gameoverOverlay.classList.remove('visible');
+            pauseOverlay.classList.remove('visible');
+            if (playerCanvas && webGLSupported) playerCanvas.style.display = 'block';
+            else if (playerCanvas) playerCanvas.style.display = 'none';
+        }
+
+        function endGame() {
+            state.gameRunning = false;
+            state.lastScore = state.score;
+            if (state.score > state.record) state.record = state.score;
+            saveStorage();
+            updateMenuStats();
+            const isRecord = state.score > 0 && state.score >= state.record;
+            $('#go-score').textContent = state.score;
+            $('#go-record').textContent = 'Рекорд: ' + state.record;
+            const goTitle = $('#go-title'), goRecord = $('#go-record');
+            goTitle.textContent = isRecord ? '🏆 Новый рекорд!' : 'Игра окончена!';
+            goTitle.classList.toggle('new-record', isRecord);
+            goRecord.classList.toggle('new-record', isRecord);
+            $('#go-emoji').textContent = isRecord ? '🏆' : '😢';
+            gameoverOverlay.classList.add('visible');
+
+            const statusEl = document.getElementById('go-auto-submit-status');
+            const registerBtn = document.getElementById('go-register');
+            statusEl.textContent = '';
+            registerBtn.style.display = 'none';
+
+            if (isRecord && state.currentUser) {
+                submitScore(state.currentUser, state.score, state.currentUserAvatar)
+                    .then(result => {
+                        statusEl.textContent = `✅ Ты на ${result.position} месте в мире!`;
+                        statusEl.style.color = '#2ecc71';
+                        state.currentUserRecord = state.score;
+                    })
+                    .catch(err => {
+                        statusEl.textContent = '⚠️ Ошибка отправки рекорда';
+                        statusEl.style.color = '#e74c3c';
+                    });
+            } else if (isRecord && !state.currentUser) {
+                statusEl.textContent = '🏆 Новый рекорд! Войди, чтобы сохранить.';
+                statusEl.style.color = '#f1c40f';
+                registerBtn.style.display = 'block';
             }
-            function updateMenuStats() {
-                recordVal.textContent = state.record;
-                lastVal.textContent = state.lastScore !== null ? state.lastScore : '—';
+            if (playerCanvas) playerCanvas.style.display = 'none';
+        }
+
+        let lastTime = 0;
+
+        function update(dt) {
+            if (!state.gameRunning || state.gamePaused) return;
+            if (dt > 0.1) dt = 0.1;
+            state.gameTime += dt;
+            state.invincibleTimer = Math.max(0, state.invincibleTimer - dt);
+            state.shakeTimer = Math.max(0, state.shakeTimer - dt);
+            if (state.lastTimerValue <= state.gameTime) {
+                state.lastTimerValue = state.gameTime + 0.5;
+                state.score += Math.max(1, Math.floor(state.gameTime / 10.0));
+            }
+            state.speedIncrementAcc += dt;
+            if (state.speedIncrementAcc >= 7) {
+                state.speedIncrementAcc -= 7;
+                state.speed = Math.min(state.maxSpeed, state.speed + state.speedIncrement);
+                state.spawnInterval = Math.max(state.minSpawnInterval, state.spawnInterval - 0.05);
             }
 
-            function showScreen(name) {
-                state.screen = name;
-                [menuScreen, gameScreen, collectionScreen].forEach(s => s.classList.remove('active'));
-                if (name === 'menu') menuScreen.classList.add('active');
-                else if (name === 'game') gameScreen.classList.add('active');
-                else if (name === 'collection') {
-                    collectionScreen.classList.add('active');
-                    renderCollection();
-                    collectionDetail.style.display = 'none';
-                    collectionGrid.style.display = 'grid';
-                }
-                if (name === 'game') {
-  // возможно, уже показали в resetGame
-} else {
-  playerModel3D.style.display = 'none';
-}
-            }
-
-            function renderCollection() {
-                collectionGrid.innerHTML = '';
-                const discovered = Object.keys(state.discoveredFoods);
-                if (discovered.length === 0) {
-                    collectionGrid.innerHTML = '<p style="color:#889;text-align:center;width:100%;padding:30px;">Пока ничего не открыто.</p>';
-                    return;
-                }
-                discovered.forEach(foodId => {
-                    const fd = FOOD_DATA.find(f => f.id === foodId);
-                    if (!fd) return;
-                    const card = document.createElement('div');
-                    card.className = 'collection-card';
-                    card.innerHTML = `
-                        <span class="card-emoji">${fd.emoji}</span>
-                        <span class="card-dot ${fd.type}"></span>
-                        <span class="card-name">${fd.name}</span>
-                    `;
-                    card.addEventListener('click', () => showCollectionDetail(fd));
-                    collectionGrid.appendChild(card);
-                });
-            }
-
-            function showCollectionDetail(fd) {
-                collectionGrid.style.display = 'none';
-                collectionDetail.style.display = 'block';
-                $('#detail-emoji').textContent = fd.emoji;
-                $('#detail-name').textContent = fd.name;
-                const typeEl = $('#detail-type');
-                typeEl.textContent = fd.type === 'healthy' ? '✅ Полезная еда' : '🗑️ Вредная еда';
-                typeEl.className = 'detail-type ' + fd.type;
-                $('#detail-info').textContent = fd.info || '';
-            }
-
-            function updateHUD() {
-                hudScore.textContent = '⭐ ' + state.score;
-                hudTime.textContent = '⏱ ' + Math.floor(state.gameTime) + 's';
-                const hearts = hudLives.querySelectorAll('.heart');
-                hearts.forEach((h, i) => h.classList.toggle('lost', i >= state.lives));
-            }
-
-            function resizeCanvas() {
-                const rect = app.getBoundingClientRect();
-                const w = rect.width,
-                    h = rect.height;
-                state.canvasW = w;
-                state.canvasH = h;
-                canvas.width = w * (window.devicePixelRatio || 1);
-                canvas.height = h * (window.devicePixelRatio || 1);
-                canvas.style.width = w + 'px';
-                canvas.style.height = h + 'px';
-                ctx.setTransform(1, 0, 0, 1, 0, 0);
-                ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
-                state.roadTopY = h * 0.26;
-                state.roadBottomY = h * 1.05;
-                state.roadTopWidth = w * 0.3;
-                state.roadBottomWidth = w * 0.9;
-                state.laneWidthBottom = state.roadBottomWidth / 3;
-                state.playerTargetX = w / 2 + state.lane * state.laneWidthBottom;
-                state.playerX = state.playerTargetX;
-            }
-
-            function roadWidthAt(p) { return state.roadTopWidth + p * (state.roadBottomWidth - state.roadTopWidth); }
-            function roadYAt(p) { return state.roadTopY + p * (state.roadBottomY - state.roadTopY); }
-            function laneCenterX(lane, p) {
-                const rw = roadWidthAt(p);
-                return state.canvasW / 2 + lane * (rw / 3);
-            }
-            function scaleAt(p) { return 0.22 + p * 1.05; }
-
-            function addBackgroundEffect(color, emoji) {
-                while (state.bgGlows.length >= MAX_GLOWS) {
-                    state.bgGlows.shift();
-                }
-                state.bgGlows.push({
-                    x: state.canvasW / 2,
-                    yBottom: state.canvasH,
-                    height: state.canvasH * 0.55,
-                    life: 0.9,
-                    maxLife: 0.9,
-                    color
-                });
-            }
-
-            function spawnFood() {
-                const fd = FOOD_DATA[Math.floor(Math.random() * FOOD_DATA.length)];
-                const lane = Math.floor(Math.random() * 3) - 1;
-                state.foods.push({ foodData: fd, lane, progress: -0.1, collected: false });
-            }
-
-            function resetGame() {
-                state.gameRunning = true;
-                state.gamePaused = false;
-                state.score = 0;
-                state.lives = 3;
-                state.gameTime = 0;
-                state.lane = 0;
-                state.speed = state.baseSpeed;
-                state.spawnInterval = 1.0;
+            state.spawnTimer += dt;
+            if (state.spawnTimer >= state.spawnInterval) {
                 state.spawnTimer = 0;
-                state.foods = [];
-                state.bgGlows = [];
-                state.roadMarkers = [];
-                state.invincibleTimer = 0;
-                state.shakeTimer = 0;
-                state.shakeIntensity = 0;
-                state.speedIncrementAcc = 0;
+                if (state.foods.length < 8) spawnFood();
+            }
+
+            state.markerSpawnTimer += dt;
+            if (state.markerSpawnTimer >= 0.18) {
                 state.markerSpawnTimer = 0;
-                state.playerTargetX = state.canvasW / 2;
-                state.playerX = state.playerTargetX;
-                state.lastTimerValue = 0;
-                playerModel3D.style.display = 'block';
-                updateHUD();
-                
-                gameoverOverlay.classList.remove('visible');
-                pauseOverlay.classList.remove('visible');
+                const lane = Math.floor(Math.random() * 3) - 1;
+                state.roadMarkers.push({ lane, progress: 0 });
+            }
+            for (let i = state.roadMarkers.length - 1; i >= 0; i--) {
+                state.roadMarkers[i].progress += state.speed * 2.0 * dt;
+                if (state.roadMarkers[i].progress >= 1) state.roadMarkers.splice(i, 1);
             }
 
-            function endGame() {
-                state.gameRunning = false;
-                state.lastScore = state.score;
-                if (state.score > state.record) state.record = state.score;
-                saveStorage();
-                updateMenuStats();
-                const isRecord = state.score > 0 && state.score >= state.record;
-                $('#go-score').textContent = state.score;
-                $('#go-record').textContent = 'Рекорд: ' + state.record;
-                const goTitle = $('#go-title'),
-                    goRecord = $('#go-record');
-                goTitle.textContent = isRecord ? '🏆 Новый рекорд!' : 'Игра окончена!';
-                goTitle.classList.toggle('new-record', isRecord);
-                goRecord.classList.toggle('new-record', isRecord);
-                $('#go-emoji').textContent = isRecord ? '🏆' : '😢';
-                gameoverOverlay.classList.add('visible');
-                playerModel3D.style.display = 'none';
-                const statusEl = document.getElementById('go-auto-submit-status');
-                const registerBtn = document.getElementById('go-register');
-                statusEl.textContent = '';
-                registerBtn.style.display = 'none';
-
-                if (isRecord && state.currentUser) {
-                    submitScore(state.currentUser, state.score, state.currentUserAvatar)
-                        .then(result => {
-                            statusEl.textContent = `✅ Ты на ${result.position} месте в мире!`;
-                            statusEl.style.color = '#2ecc71';
-                            state.currentUserRecord = state.score;
-                        })
-                        .catch(err => {
-                            statusEl.textContent = '⚠️ Ошибка отправки рекорда';
-                            statusEl.style.color = '#e74c3c';
-                        });
-                } else if (isRecord && !state.currentUser) {
-                    statusEl.textContent = '🏆 Новый рекорд! Войди, чтобы сохранить.';
-                    statusEl.style.color = '#f1c40f';
-                    registerBtn.style.display = 'block';
-                }
+            for (const f of state.foods) {
+                if (!f.collected) f.progress += state.speed * dt;
             }
 
-            let lastTime = 0;
-
-            function update(dt) {
-                if (!state.gameRunning || state.gamePaused) return;
-                if (dt > 0.1) dt = 0.1;
-                state.gameTime += dt;
-                state.invincibleTimer = Math.max(0, state.invincibleTimer - dt);
-                state.shakeTimer = Math.max(0, state.shakeTimer - dt);
-                if (state.lastTimerValue <= state.gameTime) {
-                    state.lastTimerValue = state.gameTime + 0.5;
-                    state.score += Math.max(1, Math.floor(state.gameTime / 10.0));
-                }
-                state.speedIncrementAcc += dt;
-                if (state.speedIncrementAcc >= 7) {
-                    state.speedIncrementAcc -= 7;
-                    state.speed = Math.min(state.maxSpeed, state.speed + state.speedIncrement);
-                    state.spawnInterval = Math.max(state.minSpawnInterval, state.spawnInterval - 0.05);
-                }
-
-                state.spawnTimer += dt;
-                if (state.spawnTimer >= state.spawnInterval) {
-                    state.spawnTimer = 0;
-                    if (state.foods.length < 8) spawnFood();
-                }
-
-                state.markerSpawnTimer += dt;
-                if (state.markerSpawnTimer >= 0.18) {
-                    state.markerSpawnTimer = 0;
-                    const lane = Math.floor(Math.random() * 3) - 1;
-                    state.roadMarkers.push({ lane, progress: 0 });
-                }
-                for (let i = state.roadMarkers.length - 1; i >= 0; i--) {
-                    state.roadMarkers[i].progress += state.speed * 2.0 * dt;
-                    if (state.roadMarkers[i].progress >= 1) state.roadMarkers.splice(i, 1);
-                }
-
-                for (const f of state.foods) {
-                    if (!f.collected) f.progress += state.speed * dt;
-                }
-
-                const playerP = state.playerProgress;
-                for (const f of state.foods) {
-                    if (f.collected) continue;
-                    const threshold = f.foodData.type === 'healthy' ?
-                        { low: -0.08, high: 0.10 } :
-                        { low: -0.03, high: 0.05 };
-                    if (f.progress >= playerP + threshold.low && f.progress <= playerP + threshold.high && f.lane === state.lane) {
-                        if (f.foodData.type === 'healthy') {
-                            state.score += Math.max(1, Math.floor(state.gameTime));
-                            addBackgroundEffect('#2ecc71', f.foodData.emoji);
+            const playerP = state.playerProgress;
+            for (const f of state.foods) {
+                if (f.collected) continue;
+                const threshold = f.foodData.type === 'healthy' ?
+                    { low: -0.08, high: 0.10 } :
+                    { low: -0.03, high: 0.05 };
+                if (f.progress >= playerP + threshold.low && f.progress <= playerP + threshold.high && f.lane === state.lane) {
+                    if (f.foodData.type === 'healthy') {
+                        state.score += Math.max(1, Math.floor(state.gameTime));
+                        addBackgroundEffect('#2ecc71', f.foodData.emoji);
+                        if (!state.discoveredFoods[f.foodData.id]) {
+                            state.discoveredFoods[f.foodData.id] = true;
+                            saveStorage();
+                        }
+                    } else {
+                        if (state.invincibleTimer <= 0) {
+                            state.lives--;
+                            state.invincibleTimer = 0.8;
+                            state.shakeTimer = 0.5;
+                            state.shakeIntensity = 18;
+                            addBackgroundEffect('#e74c3c', f.foodData.emoji);
                             if (!state.discoveredFoods[f.foodData.id]) {
                                 state.discoveredFoods[f.foodData.id] = true;
                                 saveStorage();
                             }
-                        } else {
-                            if (state.invincibleTimer <= 0) {
-                                state.lives--;
-                                state.invincibleTimer = 0.8;
-                                state.shakeTimer = 0.5;
-                                state.shakeIntensity = 18;
-                                addBackgroundEffect('#e74c3c', f.foodData.emoji);
-                                if (!state.discoveredFoods[f.foodData.id]) {
-                                    state.discoveredFoods[f.foodData.id] = true;
-                                    saveStorage();
-                                }
-                            }
                         }
-                        f.collected = true;
                     }
-                }
-
-                state.foods = state.foods.filter(f => !f.collected && f.progress <= 1.15);
-
-                for (const g of state.bgGlows) g.life -= dt;
-                state.bgGlows = state.bgGlows.filter(g => g.life > 0);
-
-                const dx = state.playerTargetX - state.playerX;
-                const lerpFactor = 1 - Math.exp(-16 * dt);
-                state.playerX += dx * lerpFactor;
-                if (Math.abs(dx) < 0.15) state.playerX = state.playerTargetX;
-
-                if (state.lives <= 0 && state.gameRunning) endGame();
-            }
-
-            function drawRoad() {
-                const w = state.canvasW,
-                    h = state.canvasH;
-                const rty = state.roadTopY,
-                    rby = state.roadBottomY;
-                const rtw = state.roadTopWidth,
-                    rbw = state.roadBottomWidth;
-
-                const skyGrad = ctx.createLinearGradient(0, 0, 0, h);
-                skyGrad.addColorStop(0, '#0a0a24');
-                skyGrad.addColorStop(1, '#151530');
-                ctx.fillStyle = skyGrad;
-                ctx.fillRect(0, 0, w, h);
-
-                for (const g of state.bgGlows) {
-                    const progress = g.life / g.maxLife;
-                    const alpha = progress * 0.45;
-                    const grad = ctx.createLinearGradient(0, g.yBottom - g.height, 0, g.yBottom);
-                    let rgba;
-                    if (g.color === '#2ecc71') rgba = `rgba(46,204,113,${alpha})`;
-                    else if (g.color === '#e74c3c') rgba = `rgba(231,76,60,${alpha})`;
-                    else rgba = g.color.replace(')', `,${alpha})`).replace('rgb', 'rgba');
-                    grad.addColorStop(0, 'rgba(0,0,0,0)');
-                    grad.addColorStop(1, rgba);
-                    ctx.fillStyle = grad;
-                    ctx.fillRect(0, g.yBottom - g.height, w, g.height);
-                }
-
-                const leftTop = w / 2 - rtw / 2,
-                    rightTop = w / 2 + rtw / 2;
-                const leftBottom = w / 2 - rbw / 2,
-                    rightBottom = w / 2 + rbw / 2;
-
-                ctx.fillStyle = '#14142b';
-                ctx.beginPath();
-                ctx.moveTo(leftTop, rty);
-                ctx.lineTo(rightTop, rty);
-                ctx.lineTo(rightBottom, rby);
-                ctx.lineTo(leftBottom, rby);
-                ctx.closePath();
-                ctx.fill();
-
-                for (const m of state.roadMarkers) {
-                    const p = m.progress;
-                    if (p < 0 || p > 1) continue;
-                    const cx = laneCenterX(m.lane, p);
-                    const cy = roadYAt(p);
-                    const sc = scaleAt(p);
-                    const ww = 4 * sc;
-                    const hh = 18 * sc;
-                    ctx.fillStyle = 'rgba(255,255,255,0.7)';
-                    ctx.fillRect(cx - ww / 2, cy - hh / 2, ww, hh);
-                }
-
-                ctx.save();
-                ctx.shadowBlur = 4;
-                ctx.shadowColor = 'rgba(0, 200, 255, 0.2)';
-                ctx.strokeStyle = 'rgba(0, 200, 255, 0.25)';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(leftTop, rty);
-                ctx.lineTo(leftBottom, rby);
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.moveTo(rightTop, rty);
-                ctx.lineTo(rightBottom, rby);
-                ctx.stroke();
-
-                ctx.shadowColor = 'rgba(255, 200, 255, 0.2)';
-                ctx.strokeStyle = 'rgba(255, 200, 255, 0.25)';
-                ctx.lineWidth = 1.5;
-                ctx.beginPath();
-                ctx.moveTo(w / 2 - rtw / 6, rty);
-                ctx.lineTo(w / 2 - rbw / 6, rby);
-                ctx.stroke();
-                ctx.beginPath();
-                ctx.moveTo(w / 2 + rtw / 6, rty);
-                ctx.lineTo(w / 2 + rbw / 6, rby);
-                ctx.stroke();
-                ctx.restore();
-            }
-
-            function drawFoodItems() {
-                for (const f of state.foods) {
-                    if (f.collected) continue;
-                    const p = f.progress;
-                    if (p < -0.05 || p > 1.15) continue;
-                    const cx = laneCenterX(f.lane, p);
-                    const cy = roadYAt(p);
-                    const scale = scaleAt(p);
-                    const size = 48 * scale;
-                    const half = size / 2;
-                    const circleRadius = half * 1.35;
-                    const fd = f.foodData;
-                    const borderColor = fd.type === 'healthy' ? '#2ecc71' : '#e74c3c';
-
-                    ctx.fillStyle = 'rgba(0,0,0,0.35)';
-                    ctx.beginPath();
-                    ctx.ellipse(cx, cy + size * 0.25, half * 0.8, half * 0.2, 0, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    const glow = ctx.createRadialGradient(cx, cy, half * 0.6, cx, cy, circleRadius * 1.4);
-                    glow.addColorStop(0, borderColor.replace(')', ',0.3)').replace('rgb', 'rgba'));
-                    glow.addColorStop(1, 'rgba(0,0,0,0)');
-                    ctx.fillStyle = glow;
-                    ctx.beginPath();
-                    ctx.arc(cx, cy, circleRadius * 1.4, 0, Math.PI * 2);
-                    ctx.fill();
-
-                    ctx.strokeStyle = borderColor;
-                    ctx.lineWidth = 2.5 * scale;
-                    ctx.beginPath();
-                    ctx.arc(cx, cy, circleRadius, 0, Math.PI * 2);
-                    ctx.stroke();
-
-                    ctx.font = `${size * 0.9}px 'Segoe UI Emoji','Apple Color Emoji'`;
-                    ctx.textAlign = 'center';
-                    ctx.textBaseline = 'middle';
-                    ctx.fillText(fd.emoji, cx, cy);
+                    f.collected = true;
                 }
             }
 
-            function drawPlayer() {
-                const px = state.playerX;
-                const py = roadYAt(state.playerProgress);
-                const scale = scaleAt(state.playerProgress);
-                const size = 58 * scale;
+            state.foods = state.foods.filter(f => !f.collected && f.progress <= 1.15);
+            for (const g of state.bgGlows) g.life -= dt;
+            state.bgGlows = state.bgGlows.filter(g => g.life > 0);
+
+            const dx = state.playerTargetX - state.playerX;
+            const lerpFactor = 1 - Math.exp(-16 * dt);
+            state.playerX += dx * lerpFactor;
+            if (Math.abs(dx) < 0.15) state.playerX = state.playerTargetX;
+
+            if (state.lives <= 0 && state.gameRunning) endGame();
+        }
+
+        // ====== 2D рендеринг ======
+        function drawRoad() {
+            const w = state.canvasW, h = state.canvasH;
+            const rty = state.roadTopY, rby = state.roadBottomY;
+            const rtw = state.roadTopWidth, rbw = state.roadBottomWidth;
+
+            const skyGrad = ctx.createLinearGradient(0, 0, 0, h);
+            skyGrad.addColorStop(0, '#0a0a24');
+            skyGrad.addColorStop(1, '#151530');
+            ctx.fillStyle = skyGrad;
+            ctx.fillRect(0, 0, w, h);
+
+            for (const g of state.bgGlows) {
+                const progress = g.life / g.maxLife;
+                const alpha = progress * 0.45;
+                const grad = ctx.createLinearGradient(0, g.yBottom - g.height, 0, g.yBottom);
+                let rgba;
+                if (g.color === '#2ecc71') rgba = `rgba(46,204,113,${alpha})`;
+                else if (g.color === '#e74c3c') rgba = `rgba(231,76,60,${alpha})`;
+                else rgba = g.color.replace(')', `,${alpha})`).replace('rgb', 'rgba');
+                grad.addColorStop(0, 'rgba(0,0,0,0)');
+                grad.addColorStop(1, rgba);
+                ctx.fillStyle = grad;
+                ctx.fillRect(0, g.yBottom - g.height, w, g.height);
+            }
+
+            const leftTop = w / 2 - rtw / 2, rightTop = w / 2 + rtw / 2;
+            const leftBottom = w / 2 - rbw / 2, rightBottom = w / 2 + rbw / 2;
+            ctx.fillStyle = '#14142b';
+            ctx.beginPath();
+            ctx.moveTo(leftTop, rty);
+            ctx.lineTo(rightTop, rty);
+            ctx.lineTo(rightBottom, rby);
+            ctx.lineTo(leftBottom, rby);
+            ctx.closePath();
+            ctx.fill();
+
+            for (const m of state.roadMarkers) {
+                const p = m.progress;
+                if (p < 0 || p > 1) continue;
+                const cx = laneCenterX(m.lane, p);
+                const cy = roadYAt(p);
+                const sc = scaleAt(p);
+                const ww = 4 * sc, hh = 18 * sc;
+                ctx.fillStyle = 'rgba(255,255,255,0.7)';
+                ctx.fillRect(cx - ww / 2, cy - hh / 2, ww, hh);
+            }
+
+            ctx.save();
+            ctx.shadowBlur = 4;
+            ctx.shadowColor = 'rgba(0, 200, 255, 0.2)';
+            ctx.strokeStyle = 'rgba(0, 200, 255, 0.25)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(leftTop, rty);
+            ctx.lineTo(leftBottom, rby);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(rightTop, rty);
+            ctx.lineTo(rightBottom, rby);
+            ctx.stroke();
+
+            ctx.shadowColor = 'rgba(255, 200, 255, 0.2)';
+            ctx.strokeStyle = 'rgba(255, 200, 255, 0.25)';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(w / 2 - rtw / 6, rty);
+            ctx.lineTo(w / 2 - rbw / 6, rby);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(w / 2 + rtw / 6, rty);
+            ctx.lineTo(w / 2 + rbw / 6, rby);
+            ctx.stroke();
+            ctx.restore();
+        }
+
+        function drawFoodItems() {
+            for (const f of state.foods) {
+                if (f.collected) continue;
+                const p = f.progress;
+                if (p < -0.05 || p > 1.15) continue;
+                const cx = laneCenterX(f.lane, p);
+                const cy = roadYAt(p);
+                const scale = scaleAt(p);
+                const size = 48 * scale;
                 const half = size / 2;
-                const circleRadius = half * 1.2;
+                const circleRadius = half * 1.35;
+                const fd = f.foodData;
+                const borderColor = fd.type === 'healthy' ? '#2ecc71' : '#e74c3c';
 
-                if (state.invincibleTimer > 0 && Math.floor(state.invincibleTimer * 15) % 2 === 0) {
-                    ctx.fillStyle = 'rgba(255,255,255,0.35)';
-                    ctx.beginPath();
-                    ctx.arc(px, py, circleRadius * 1.4, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-
-                ctx.fillStyle = 'rgba(0,0,0,0.4)';
+                ctx.fillStyle = 'rgba(0,0,0,0.35)';
                 ctx.beginPath();
-                ctx.ellipse(px, py + size * 0.25, half * 0.75, half * 0.2, 0, 0, Math.PI * 2);
+                ctx.ellipse(cx, cy + size * 0.25, half * 0.8, half * 0.2, 0, 0, Math.PI * 2);
                 ctx.fill();
 
-                const glow = ctx.createRadialGradient(px, py, half * 0.6, px, py, circleRadius * 1.5);
-                glow.addColorStop(0, 'rgba(241,196,15,0.25)');
+                const glow = ctx.createRadialGradient(cx, cy, half * 0.6, cx, cy, circleRadius * 1.4);
+                glow.addColorStop(0, borderColor.replace(')', ',0.3)').replace('rgb', 'rgba'));
                 glow.addColorStop(1, 'rgba(0,0,0,0)');
                 ctx.fillStyle = glow;
                 ctx.beginPath();
-                ctx.arc(px, py, circleRadius * 1.5, 0, Math.PI * 2);
+                ctx.arc(cx, cy, circleRadius * 1.4, 0, Math.PI * 2);
                 ctx.fill();
 
-                ctx.strokeStyle = '#f1c40f';
-                ctx.lineWidth = 3 * scale;
+                ctx.strokeStyle = borderColor;
+                ctx.lineWidth = 2.5 * scale;
                 ctx.beginPath();
-                ctx.arc(px, py, circleRadius, 0, Math.PI * 2);
+                ctx.arc(cx, cy, circleRadius, 0, Math.PI * 2);
                 ctx.stroke();
 
-                ctx.font = `${size * 1.1}px 'Segoe UI Emoji','Apple Color Emoji'`;
+                ctx.font = `${size * 0.9}px 'Segoe UI Emoji','Apple Color Emoji'`;
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
+                ctx.fillText(fd.emoji, cx, cy);
+            }
+        }
+
+        // Только тень для 3D-режима (без обводки и свечения)
+        function drawPlayerShadowOnly() {
+            const px = state.playerX;
+            const py = roadYAt(state.playerProgress);
+            const scale = scaleAt(state.playerProgress);
+            const size = 58 * scale;
+            const half = size / 2;
+
+            ctx.fillStyle = 'rgba(0,0,0,0.4)';
+            ctx.beginPath();
+            ctx.ellipse(px, py + size * 0.25, half * 0.75, half * 0.2, 0, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        // Игрок в 2D (эмодзи) — запасной вариант
+        function drawPlayer2D(drawPlayerEmoji) {
+            const px = state.playerX;
+            const py = roadYAt(state.playerProgress);
+            const scale = scaleAt(state.playerProgress);
+            const size = 58 * scale;
+            const half = size / 2;
+            const circleRadius = half * 1.2;
+
+            if (state.invincibleTimer > 0 && Math.floor(state.invincibleTimer * 15) % 2 === 0) return;
+
+            ctx.fillStyle = 'rgba(0,0,0,0.4)';
+            ctx.beginPath();
+            ctx.ellipse(px, py + size * 0.25, half * 0.75, half * 0.2, 0, 0, Math.PI * 2);
+            ctx.fill();
+
+            const glow = ctx.createRadialGradient(px, py, half * 0.6, px, py, circleRadius * 1.5);
+            glow.addColorStop(0, 'rgba(241,196,15,0.25)');
+            glow.addColorStop(1, 'rgba(0,0,0,0)');
+            ctx.fillStyle = glow;
+            ctx.beginPath();
+            ctx.arc(px, py, circleRadius * 1.5, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = '#f1c40f';
+            ctx.lineWidth = 3 * scale;
+            ctx.beginPath();
+            ctx.arc(px, py, circleRadius, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.font = `${size * 1.1}px 'Segoe UI Emoji','Apple Color Emoji'`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            if (drawPlayerEmoji === true) {
                 ctx.fillText('🏃', px, py);
             }
+            
+        }
 
-            function drawFog() {
-                const rty = state.roadTopY;
-                const rby = state.roadBottomY;
-                const fogTop = rty - 100;
-                const fogBottom = rty + 150;
-                const fog = ctx.createLinearGradient(0, fogTop, 0, fogBottom);
-                fog.addColorStop(0, '#0a0a24');
-                fog.addColorStop(0.4, 'rgba(10,10,36,0.94)');
-                fog.addColorStop(1, 'rgba(10,10,36,0)');
-                ctx.fillStyle = fog;
-                ctx.fillRect(0, fogTop, state.canvasW, fogBottom - fogTop);
+        function drawFog() {
+            const rty = state.roadTopY;
+            const rby = state.roadBottomY;
+            const fogTop = rty - 100;
+            const fogBottom = rty + 150;
+            const fog = ctx.createLinearGradient(0, fogTop, 0, fogBottom);
+            fog.addColorStop(0, '#0a0a24');
+            fog.addColorStop(0.4, 'rgba(10,10,36,0.94)');
+            fog.addColorStop(1, 'rgba(10,10,36,0)');
+            ctx.fillStyle = fog;
+            ctx.fillRect(0, fogTop, state.canvasW, fogBottom - fogTop);
 
-                const bottomFogTop = rby - 80;
-                const bottomFogBottom = state.canvasH;
-                const bottomFog = ctx.createLinearGradient(0, bottomFogTop, 0, bottomFogBottom);
-                bottomFog.addColorStop(0, 'rgba(10,10,36,0)');
-                bottomFog.addColorStop(0.5, 'rgba(10,10,36,0.85)');
-                bottomFog.addColorStop(1, '#0a0a24');
-                ctx.fillStyle = bottomFog;
-                ctx.fillRect(0, bottomFogTop, state.canvasW, bottomFogBottom - bottomFogTop);
+            const bottomFogTop = rby - 80;
+            const bottomFogBottom = state.canvasH;
+            const bottomFog = ctx.createLinearGradient(0, bottomFogTop, 0, bottomFogBottom);
+            bottomFog.addColorStop(0, 'rgba(10,10,36,0)');
+            bottomFog.addColorStop(0.5, 'rgba(10,10,36,0.85)');
+            bottomFog.addColorStop(1, '#0a0a24');
+            ctx.fillStyle = bottomFog;
+            ctx.fillRect(0, bottomFogTop, state.canvasW, bottomFogBottom - bottomFogTop);
+        }
+
+        function render2D() {
+            ctx.clearRect(0, 0, state.canvasW, state.canvasH);
+            let sx = 0, sy = 0;
+            if (state.shakeTimer > 0) {
+                const i = state.shakeIntensity * (state.shakeTimer / 0.5);
+                sx = (Math.random() - 0.5) * i * 2;
+                sy = (Math.random() - 0.5) * i * 2;
             }
-
-            function render() {
-                ctx.clearRect(0, 0, state.canvasW, state.canvasH);
-                let sx = 0,
-                    sy = 0;
-                if (state.shakeTimer > 0) {
-                    const i = state.shakeIntensity * (state.shakeTimer / 0.5);
-                    sx = (Math.random() - 0.5) * i * 2;
-                    sy = (Math.random() - 0.5) * i * 2;
-                }
-                ctx.save();
-                ctx.translate(sx, sy);
-                drawRoad();
-                drawFoodItems();
-                // drawPlayer();
-                // --- синхронизация 3D-модели ---
-                if (state.gameRunning) {
-                const scale = scaleAt(state.playerProgress);  // текущая перспектива
-                const py = roadYAt(state.playerProgress);     // Y игрока на экране
-                const px = state.playerX;
-
-                // Подбираем коэффициент так, чтобы размер модели был близок к старому эмодзи (58px * scale)
-                const sizeFactor = 0.55;   // 120px * 0.55 ≈ 66px → примерно как 58*scale при scale=1
-                const finalScale = scale * sizeFactor;
-
-                playerModel3D.style.transform = `
-                    translate(${px}px, ${py}px)
-                    scale(${finalScale})
-                    translate(-50%, -50%)
-                `;
-                }
-                // ---------------------------------
-                drawFog();
-                ctx.restore();
+            ctx.save();
+            ctx.translate(sx, sy);
+            drawRoad();
+            drawFoodItems();
+            if (webGLSupported && playerModel) {
+                drawPlayerShadowOnly();
+                drawPlayer2D(false); // только тень, 3D модель сверху
+            } else {
+                drawPlayer2D(true); // полный 2D игрок
             }
+            drawFog();
+            ctx.restore();
+        }
 
-            function gameLoop(timestamp) {
-                if (!lastTime) lastTime = timestamp;
-                const dt = Math.min(0.1, (timestamp - lastTime) / 1000);
-                lastTime = timestamp;
-                if (state.screen === 'game') {
-                    update(dt);
-                    render();
-                    updateHUD();
+        // ====== 3D рендеринг игрока ======
+        function initThreeJS() {
+            if (threeRenderer) return;
+            playerCanvas = document.getElementById('player-canvas');
+            if (!playerCanvas) return;
+            const prevDisplay = playerCanvas.style.display;
+            playerCanvas.style.display = 'block';
+            try {
+                threeScene = new THREE.Scene();
+                const w = state.canvasW || 400;
+                const h = state.canvasH || 700;
+                threeCamera = new THREE.OrthographicCamera(0, w, h, 0, 0.0001, 10000);
+                threeCamera.position.z = 100;
+                threeRenderer = new THREE.WebGLRenderer({
+                    canvas: playerCanvas,
+                    alpha: true,
+                    antialias: true,
+                    failIfMajorPerformanceCaveat: false
+                });
+                threeRenderer.setClearColor(0x000000, 0);
+                threeRenderer.setSize(w, h);
+                threeRenderer.setPixelRatio(1);
+
+                const ambient = new THREE.AmbientLight(0xffffff, 0.8);
+                threeScene.add(ambient);
+                const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+                dirLight.position.set(1, 1, 2);
+                threeScene.add(dirLight);
+                webGLSupported = true;
+                loadPlayerModel();
+            } catch (e) {
+                console.warn('WebGL недоступен, используется 2D-режим игрока.', e);
+                webGLSupported = false;
+                threeRenderer = undefined;
+            } finally {
+                if (state.screen !== 'game') {
+                    playerCanvas.style.display = 'none';
+                } else {
+                    playerCanvas.style.display = prevDisplay;
                 }
-                requestAnimationFrame(gameLoop);
             }
+        }
 
-            function moveLane(delta) {
-                if (!state.gameRunning || state.gamePaused) return;
-                const newLane = Math.max(-1, Math.min(1, state.lane + delta));
-                if (newLane !== state.lane) {
-                    state.lane = newLane;
-                    state.playerTargetX = state.canvasW / 2 + state.lane * state.laneWidthBottom;
+        function loadPlayerModel() {
+            if (!webGLSupported || !threeRenderer) return;
+            const loader = new GLTFLoader();
+            loader.load('models/player.glb',
+                (gltf) => {
+                    playerModel = gltf.scene;
+                    // Вычисляем размер модели для правильного масштабирования
+                    const box = new THREE.Box3().setFromObject(playerModel);
+                    const size = box.getSize(new THREE.Vector3());
+                    modelBaseSize = Math.max(size.x, size.y, size.z);
+                    if (modelBaseSize === 0) modelBaseSize = 1;
+                    playerModel.rotation.set(0.5, Math.PI, 0);
+                    threeScene.add(playerModel);
+                    if (gltf.animations && gltf.animations.length > 0) {
+                        mixer = new THREE.AnimationMixer(playerModel);
+                        animationAction = mixer.clipAction(gltf.animations[0]);
+                        animationAction.play();
+                    }
+                    console.log('3D модель игрока загружена, базовый размер:', modelBaseSize);
+                },
+                undefined,
+                (error) => {
+                    console.warn('Не удалось загрузить 3D модель, используется 2D-игрок.', error);
+                    webGLSupported = false;
+                    if (playerCanvas) playerCanvas.style.display = 'none';
                 }
+            );
+        }
+
+        function update3DPlayer(dt) {
+            if (!webGLSupported || !playerModel || !threeRenderer) return;
+            const screenX = state.playerX;
+            const screenY = state.canvasH - roadYAt(state.playerProgress);
+            playerModel.position.set(screenX, screenY-20, 0);
+            const desiredSize = 78 * scaleAt(state.playerProgress) * 0.9;
+            const s = desiredSize / modelBaseSize;
+            playerModel.scale.set(s, s, s);
+            if (state.invincibleTimer > 0 && Math.floor(state.invincibleTimer * 15) % 2 === 0) {
+                playerModel.visible = false;
+            } else {
+                playerModel.visible = true;
             }
+            if (mixer) mixer.update(dt);
+            threeRenderer.clear();
+            threeRenderer.render(threeScene, threeCamera);
+        }
 
-            let touchStartX = 0,
-                touchStartY = 0,
-                touchActive = false;
-            canvas.addEventListener('touchstart', e => {
-                if (!state.gameRunning || state.gamePaused) return;
-                if (e.touches.length === 1) {
-                    touchStartX = e.touches[0].clientX;
-                    touchStartY = e.touches[0].clientY;
-                    touchActive = true;
+        function gameLoop(timestamp) {
+            if (!lastTime) lastTime = timestamp;
+            const dt = Math.min(0.1, (timestamp - lastTime) / 1000);
+            lastTime = timestamp;
+            if (state.screen === 'game') {
+                update(dt);
+                render2D();
+                if (state.gameRunning && !state.gamePaused && webGLSupported) {
+                    update3DPlayer(dt);
+                } else if (playerCanvas && threeRenderer) {
+                    threeRenderer.clear();
                 }
-            }, { passive: false });
-            canvas.addEventListener('touchmove', e => {
-                if (touchActive && state.gameRunning && !state.gamePaused) e.preventDefault();
-            }, { passive: false });
-            canvas.addEventListener('touchend', e => {
-                if (!touchActive) return;
-                touchActive = false;
-                if (!state.gameRunning || state.gamePaused) return;
-                const dx = (e.changedTouches[0]?.clientX || touchStartX) - touchStartX;
-                const dy = (e.changedTouches[0]?.clientY || touchStartY) - touchStartY;
-                if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 25) moveLane(dx > 0 ? 1 : -1);
-            });
-            canvas.addEventListener('mousedown', e => {
-                if (!state.gameRunning || state.gamePaused) return;
-                touchStartX = e.clientX;
-                touchStartY = e.clientY;
-                touchActive = true;
-            });
-            window.addEventListener('mouseup', e => {
-                if (!touchActive) return;
-                touchActive = false;
-                if (!state.gameRunning || state.gamePaused) return;
-                const dx = e.clientX - touchStartX,
-                    dy = e.clientY - touchStartY;
-                if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 20) moveLane(dx > 0 ? 1 : -1);
-            });
-            window.addEventListener('keydown', e => {
-                if (state.screen !== 'game' || !state.gameRunning || state.gamePaused) return;
-                if (e.key === 'ArrowLeft' || e.key === 'a') { e.preventDefault();
-                    moveLane(-1); } else if (e.key === 'ArrowRight' || e.key === 'd') { e.preventDefault();
-                    moveLane(1); }
-            });
+                updateHUD();
+            }
+            requestAnimationFrame(gameLoop);
+        }
 
-            $('#btn-play').addEventListener('click', () => { resizeCanvas();
-                resetGame();
-                showScreen('game');
-                lastTime = performance.now(); });
-            $('#hud-pause-btn').addEventListener('click', () => { if (state.gameRunning && !state.gamePaused) { state
-                    .gamePaused = true;
-                pauseOverlay.classList.add('visible'); } });
-            $('#pause-resume').addEventListener('click', () => { state.gamePaused = false;
-                pauseOverlay.classList.remove('visible');
-                lastTime = performance.now(); });
-            $('#pause-quit').addEventListener('click', () => { state.gameRunning = false;
-                state.lastScore = state.score; if (state.score > state.record) state.record = state.score;
-                saveStorage();
-                updateMenuStats();
-                pauseOverlay.classList.remove('visible');
-                showScreen('menu'); });
-            $('#go-retry').addEventListener('click', () => { resizeCanvas();
-                resetGame();
-                showScreen('game');
-                lastTime = performance.now(); });
-            $('#go-menu').addEventListener('click', () => { state.gameRunning = false;
-                gameoverOverlay.classList.remove('visible');
-                showScreen('menu'); });
-            $('#go-register').addEventListener('click', () => { gameoverOverlay.classList.remove('visible');
-                showAuthOverlay(); });
-            $('#btn-collection-menu').addEventListener('click', () => showScreen('collection'));
-            $('#btn-collection-back').addEventListener('click', () => showScreen('menu'));
-            $('#btn-detail-back').addEventListener('click', () => { collectionDetail.style.display = 'none';
-                collectionGrid.style.display = 'grid'; });
-
-            window.addEventListener('resize', () => { resizeCanvas();
+        function moveLane(delta) {
+            if (!state.gameRunning || state.gamePaused) return;
+            const newLane = Math.max(-1, Math.min(1, state.lane + delta));
+            if (newLane !== state.lane) {
+                state.lane = newLane;
                 state.playerTargetX = state.canvasW / 2 + state.lane * state.laneWidthBottom;
-                state.playerX = state.playerTargetX; });
-
-            // Лидерборд и аккаунт
-            document.getElementById('btn-leaderboard').addEventListener('click', showLeaderboardOverlay);
-            document.getElementById('btn-leaderboard-close').addEventListener('click', hideLeaderboardOverlay);
-            document.getElementById('btn-account').addEventListener('click', showAuthOverlay);
-
-            function init() {
-                loadStorage();
-                updateMenuStats();
-                resizeCanvas();
-                loadUser();
-                showScreen('menu');
-                requestAnimationFrame(gameLoop);
             }
-            document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', init) : init();
-        })();
+        }
+
+        // Управление
+        let touchStartX = 0, touchStartY = 0, touchActive = false;
+        canvas.addEventListener('touchstart', e => {
+            if (!state.gameRunning || state.gamePaused) return;
+            if (e.touches.length === 1) {
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+                touchActive = true;
+            }
+        }, { passive: false });
+        canvas.addEventListener('touchmove', e => {
+            if (touchActive && state.gameRunning && !state.gamePaused) e.preventDefault();
+        }, { passive: false });
+        canvas.addEventListener('touchend', e => {
+            if (!touchActive) return;
+            touchActive = false;
+            if (!state.gameRunning || state.gamePaused) return;
+            const dx = (e.changedTouches[0]?.clientX || touchStartX) - touchStartX;
+            const dy = (e.changedTouches[0]?.clientY || touchStartY) - touchStartY;
+            if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 25) moveLane(dx > 0 ? 1 : -1);
+        });
+        canvas.addEventListener('mousedown', e => {
+            if (!state.gameRunning || state.gamePaused) return;
+            touchStartX = e.clientX;
+            touchStartY = e.clientY;
+            touchActive = true;
+        });
+        window.addEventListener('mouseup', e => {
+            if (!touchActive) return;
+            touchActive = false;
+            if (!state.gameRunning || state.gamePaused) return;
+            const dx = e.clientX - touchStartX, dy = e.clientY - touchStartY;
+            if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 20) moveLane(dx > 0 ? 1 : -1);
+        });
+        window.addEventListener('keydown', e => {
+            if (state.screen !== 'game' || !state.gameRunning || state.gamePaused) return;
+            if (e.key === 'ArrowLeft' || e.key === 'a') { e.preventDefault(); moveLane(-1); }
+            else if (e.key === 'ArrowRight' || e.key === 'd') { e.preventDefault(); moveLane(1); }
+        });
+
+        // Кнопки
+        $('#btn-play').addEventListener('click', () => {
+            resizeCanvas();
+            resetGame();
+            showScreen('game');
+            lastTime = performance.now();
+        });
+        $('#hud-pause-btn').addEventListener('click', () => {
+            if (state.gameRunning && !state.gamePaused) {
+                state.gamePaused = true;
+                pauseOverlay.classList.add('visible');
+            }
+        });
+        $('#pause-resume').addEventListener('click', () => {
+            state.gamePaused = false;
+            pauseOverlay.classList.remove('visible');
+            lastTime = performance.now();
+        });
+        $('#pause-quit').addEventListener('click', () => {
+            state.gameRunning = false;
+            state.lastScore = state.score;
+            if (state.score > state.record) state.record = state.score;
+            saveStorage();
+            updateMenuStats();
+            pauseOverlay.classList.remove('visible');
+            showScreen('menu');
+        });
+        $('#go-retry').addEventListener('click', () => {
+            resizeCanvas();
+            resetGame();
+            showScreen('game');
+            lastTime = performance.now();
+        });
+        $('#go-menu').addEventListener('click', () => {
+            state.gameRunning = false;
+            gameoverOverlay.classList.remove('visible');
+            showScreen('menu');
+        });
+        $('#go-register').addEventListener('click', () => {
+            gameoverOverlay.classList.remove('visible');
+            showAuthOverlay();
+        });
+        $('#btn-collection-menu').addEventListener('click', () => showScreen('collection'));
+        $('#btn-collection-back').addEventListener('click', () => showScreen('menu'));
+        $('#btn-detail-back').addEventListener('click', () => {
+            collectionDetail.style.display = 'none';
+            collectionGrid.style.display = 'grid';
+        });
+
+        window.addEventListener('resize', () => {
+            resizeCanvas();
+            state.playerTargetX = state.canvasW / 2 + state.lane * state.laneWidthBottom;
+            state.playerX = state.playerTargetX;
+        });
+
+        document.getElementById('btn-leaderboard').addEventListener('click', showLeaderboardOverlay);
+        document.getElementById('btn-leaderboard-close').addEventListener('click', hideLeaderboardOverlay);
+        document.getElementById('btn-account').addEventListener('click', showAuthOverlay);
+
+        function init() {
+            loadStorage();
+            updateMenuStats();
+            resizeCanvas();
+            loadUser();
+            showScreen('menu');
+            // 3D инициализируется лениво при первом входе в игру
+            requestAnimationFrame(gameLoop);
+        }
+        document.readyState === 'loading' ? document.addEventListener('DOMContentLoaded', init) : init();
     </script>
 </body>
 </html>
