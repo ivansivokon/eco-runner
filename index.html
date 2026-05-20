@@ -73,10 +73,19 @@
             animation: logoBounce 2.2s ease-in-out infinite;
         }
         @keyframes logoBounce {
-            0%, 100% { transform: translateY(0); }
-            25% { transform: translateY(-18px); }
-            50% { transform: translateY(0); }
-            70% { transform: translateY(-8px); }
+            0%,
+            100% {
+                transform: translateY(0);
+            }
+            25% {
+                transform: translateY(-18px);
+            }
+            50% {
+                transform: translateY(0);
+            }
+            70% {
+                transform: translateY(-8px);
+            }
         }
         #menu-screen h1 {
             font-size: 30px;
@@ -783,7 +792,8 @@
                 currentUser: null,
                 currentUserAvatar: '🏃',
                 currentUserRecord: 0,
-                selectedAvatar: AVATARS[0]
+                selectedAvatar: AVATARS[0],
+                guestRecord: 0
             };
 
             const MAX_GLOWS = 2;
@@ -973,20 +983,27 @@
                 try {
                     if (tab === 'register') {
                         await apiRegister(name, password, state.selectedAvatar);
-                        errorEl.textContent = 'Регистрация успешна! Теперь войдите.';
-                        setAuthTab('login');
-                        document.getElementById('auth-password').value = '';
-                        document.getElementById('auth-password2').value = '';
-                    } else {
+                        // автоматический вход после регистрации
                         const data = await apiLogin(name, password);
+                        state.guestRecord = state.record;
                         state.currentUser = name;
                         state.currentUserAvatar = data.avatar || '🏃';
                         state.currentUserRecord = data.record || 0;
-                        if (data.record > state.record) {
-                            state.record = data.record;
-                            saveStorage();
-                            updateMenuStats();
-                        }
+                        state.record = data.record || 0;
+                        saveStorage();
+                        updateMenuStats();
+                        saveUserData();
+                        updateAccountButton();
+                        hideAuthOverlay();
+                    } else {
+                        const data = await apiLogin(name, password);
+                        state.guestRecord = state.record;
+                        state.currentUser = name;
+                        state.currentUserAvatar = data.avatar || '🏃';
+                        state.currentUserRecord = data.record || 0;
+                        state.record = data.record || 0;
+                        saveStorage();
+                        updateMenuStats();
                         saveUserData();
                         updateAccountButton();
                         hideAuthOverlay();
@@ -997,10 +1014,14 @@
             });
 
             document.getElementById('auth-logout-btn').addEventListener('click', () => {
+                state.record = 0;
+                state.guestRecord = 0;
                 state.currentUser = null;
                 state.currentUserAvatar = '🏃';
                 state.currentUserRecord = 0;
                 saveUserData();
+                saveStorage();
+                updateMenuStats();
                 updateAccountButton();
                 hideAuthOverlay();
             });
@@ -1544,63 +1565,44 @@
             });
             window.addEventListener('keydown', e => {
                 if (state.screen !== 'game' || !state.gameRunning || state.gamePaused) return;
-                if (e.key === 'ArrowLeft' || e.key === 'a') { e.preventDefault(); moveLane(-1); }
-                else if (e.key === 'ArrowRight' || e.key === 'd') { e.preventDefault(); moveLane(1); }
+                if (e.key === 'ArrowLeft' || e.key === 'a') { e.preventDefault();
+                    moveLane(-1); } else if (e.key === 'ArrowRight' || e.key === 'd') { e.preventDefault();
+                    moveLane(1); }
             });
 
-            $('#btn-play').addEventListener('click', () => {
-                resizeCanvas();
+            $('#btn-play').addEventListener('click', () => { resizeCanvas();
                 resetGame();
                 showScreen('game');
-                lastTime = performance.now();
-            });
-            $('#hud-pause-btn').addEventListener('click', () => {
-                if (state.gameRunning && !state.gamePaused) {
-                    state.gamePaused = true;
-                    pauseOverlay.classList.add('visible');
-                }
-            });
-            $('#pause-resume').addEventListener('click', () => {
-                state.gamePaused = false;
+                lastTime = performance.now(); });
+            $('#hud-pause-btn').addEventListener('click', () => { if (state.gameRunning && !state.gamePaused) { state
+                    .gamePaused = true;
+                pauseOverlay.classList.add('visible'); } });
+            $('#pause-resume').addEventListener('click', () => { state.gamePaused = false;
                 pauseOverlay.classList.remove('visible');
-                lastTime = performance.now();
-            });
-            $('#pause-quit').addEventListener('click', () => {
-                state.gameRunning = false;
-                state.lastScore = state.score;
-                if (state.score > state.record) state.record = state.score;
+                lastTime = performance.now(); });
+            $('#pause-quit').addEventListener('click', () => { state.gameRunning = false;
+                state.lastScore = state.score; if (state.score > state.record) state.record = state.score;
                 saveStorage();
                 updateMenuStats();
                 pauseOverlay.classList.remove('visible');
-                showScreen('menu');
-            });
-            $('#go-retry').addEventListener('click', () => {
-                resizeCanvas();
+                showScreen('menu'); });
+            $('#go-retry').addEventListener('click', () => { resizeCanvas();
                 resetGame();
                 showScreen('game');
-                lastTime = performance.now();
-            });
-            $('#go-menu').addEventListener('click', () => {
-                state.gameRunning = false;
+                lastTime = performance.now(); });
+            $('#go-menu').addEventListener('click', () => { state.gameRunning = false;
                 gameoverOverlay.classList.remove('visible');
-                showScreen('menu');
-            });
-            $('#go-register').addEventListener('click', () => {
-                gameoverOverlay.classList.remove('visible');
-                showAuthOverlay();
-            });
+                showScreen('menu'); });
+            $('#go-register').addEventListener('click', () => { gameoverOverlay.classList.remove('visible');
+                showAuthOverlay(); });
             $('#btn-collection-menu').addEventListener('click', () => showScreen('collection'));
             $('#btn-collection-back').addEventListener('click', () => showScreen('menu'));
-            $('#btn-detail-back').addEventListener('click', () => {
-                collectionDetail.style.display = 'none';
-                collectionGrid.style.display = 'grid';
-            });
+            $('#btn-detail-back').addEventListener('click', () => { collectionDetail.style.display = 'none';
+                collectionGrid.style.display = 'grid'; });
 
-            window.addEventListener('resize', () => {
-                resizeCanvas();
+            window.addEventListener('resize', () => { resizeCanvas();
                 state.playerTargetX = state.canvasW / 2 + state.lane * state.laneWidthBottom;
-                state.playerX = state.playerTargetX;
-            });
+                state.playerX = state.playerTargetX; });
 
             // Лидерборд и аккаунт
             document.getElementById('btn-leaderboard').addEventListener('click', showLeaderboardOverlay);
